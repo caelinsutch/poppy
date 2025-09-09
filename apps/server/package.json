@@ -9,12 +9,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "^5.6.0"
+    "@poppy/clients": "workspace:*",
+    "@poppy/schemas": "workspace:*",
+    "@poppy/types": "workspace:*",
+    "@t3-oss/env-core": "^0.13.8",
+    "dotenv": "^17.2.2",
+    "fastify": "^5.6.0",
+    "wretch": "^2.11.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",
     "@types/node": "^24.3.1",
     "tsx": "^4.20.5",
-    "typescript": "5.9.2"
+    "typescript": "catalog:"
   }
 }

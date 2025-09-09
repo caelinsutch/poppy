@@ -1,4 +1,6 @@
 import fastify from 'fastify';
+import { env } from './env';
+import { loopMessageRoutes } from './routes/loop-message';
 
 const server = fastify({
   logger: true
@@ -12,10 +14,12 @@ server.get('/health', async (request, reply) => {
   return { status: 'ok' };
 });
 
+server.register(loopMessageRoutes);
+
 const start = async () => {
   try {
-    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-    const host = process.env.HOST || '0.0.0.0';
+    const port = env.PORT;
+    const host = env.HOST;
     
     await server.listen({ port, host });
     console.log(`Server listening on http://${host}:${port}`);
