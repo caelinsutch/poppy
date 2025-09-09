@@ -7,65 +7,62 @@ export interface LoopMessageClientConfig {
   baseUrl?: string;
 }
 
-export class LoopMessageClient {
-  private client: ReturnType<typeof wretch>;
+function createWretchClient(config: LoopMessageClientConfig) {
+  const baseUrl = config.baseUrl || 'https://server.loopmessage.com';
   
-  constructor(private config: LoopMessageClientConfig) {
-    const baseUrl = config.baseUrl || 'https://server.loopmessage.com';
+  return wretch(baseUrl)
+    .headers({
+      'Authorization': config.authorizationKey,
+      'Loop-Secret-Key': config.secretKey,
+      'Content-Type': 'application/json'
+    });
+}
+
+async function handleError(error: any): Promise<LoopMessageSendResponse> {
+  if (error.status) {
+    const errorData = await error.json().catch(() => ({}));
     
-    this.client = wretch(baseUrl)
-      .headers({
-        'Authorization': config.authorizationKey,
-        'Loop-Secret-Key': config.secretKey,
-        'Content-Type': 'application/json'
-      });
-  }
-
-  async sendMessage(request: LoopMessageSendRequest): Promise<LoopMessageSendResponse> {
-    try {
-      const response = await this.client
-        .url('/api/v1/message/send/')
-        .post(request)
-        .json<any>();
-
+    if (error.status === 402) {
       return {
-        success: true,
-        message: 'Message sent successfully',
-        message_id: response.message_id
+        success: false,
+        error: 'No available requests/credits'
       };
-    } catch (error: any) {
-      if (error.status) {
-        const errorData = await error.json().catch(() => ({}));
-        
-        if (error.status === 402) {
-          return {
-            success: false,
-            error: 'No available requests/credits'
-          };
-        }
-        
-        return {
-          success: false,
-          error: errorData.error || 'Failed to send message',
-          message: errorData.message
-        };
-      }
-
-      throw error;
     }
+    
+    return {
+      success: false,
+      error: errorData.error || 'Failed to send message',
+      message: errorData.message
+    };
+  }
+
+  throw error;
+}
+
+async function sendMessage(
+  client: ReturnType<typeof wretch>,
+  request: LoopMessageSendRequest
+): Promise<LoopMessageSendResponse> {
+  try {
+    const response = await client
+      .url('/api/v1/message/send/')
+      .post(request)
+      .json<any>();
+
+    return {
+      success: true,
+      message: 'Message sent successfully',
+      message_id: response.message_id
+    };
+  } catch (error: any) {
+    return handleError(error);
   }
 }
 
-const authorizationKey = process.env.LOOP_AUTHORIZATION_KEY;
-const secretKey = process.env.LOOP_SECRET_KEY;
-const baseUrl = process.env.LOOP_BASE_URL;
-
-if (!authorizationKey || !secretKey || !baseUrl) {
-  throw new Error('LOOP_AUTHORIZATION_KEY, LOOP_SECRET_KEY, and LOOP_BASE_URL must be set');
+export const createLoopMessageClient = (config: LoopMessageClientConfig) => {
+  const wretchClient = createWretchClient(config);
+  
+  return {
+    sendMessage: (request: LoopMessageSendRequest) => sendMessage(wretchClient, request)
+  };
 }
-
-export const loopClient = new LoopMessageClient({
-  authorizationKey,
-  secretKey,
-  baseUrl,
-});

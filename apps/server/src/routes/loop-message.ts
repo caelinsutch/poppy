@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { loopMessageSendRequestSchema, type LoopMessageSendResponse } from '@poppy/schemas';
-import { loopClient } from '@poppy/clients';
+import { loopClient } from '../clients/loop-message';
+
 
 export async function loopMessageRoutes(server: FastifyInstance) {
 
