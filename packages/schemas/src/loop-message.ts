@@ -25,6 +25,78 @@ export const loopMessageErrorSchema = z.object({
   status_code: z.number(),
 });
 
+const baseWebhookPayloadSchema = z.object({
+  message_id: z.string(),
+  webhook_id: z.string(),
+  recipient: z.string(),
+  text: z.string(),
+  sender_name: z.string().optional(),
+  subject: z.string().optional(),
+  thread_id: z.string().optional(),
+  sandbox: z.boolean().optional(),
+  passthrough: z.string().optional(),
+  delivery_type: z.enum(['imessage', 'sms']).optional(),
+});
+
+const messageInboundPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_inbound'),
+  message_type: z.enum(['text', 'reaction', 'audio', 'attachments', 'sticker', 'location']).optional(),
+  attachments: z.array(z.string()).optional(),
+  language: z.object({
+    code: z.string(),
+    name: z.string(),
+  }).optional(),
+  speech: z.object({
+    text: z.string(),
+    confidence: z.number(),
+  }).optional(),
+});
+
+const messageScheduledPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_scheduled'),
+});
+
+const messageFailedPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_failed'),
+  error_code: z.number(),
+});
+
+const messageSentPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_sent'),
+  success: z.boolean(),
+});
+
+const messageReactionPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_reaction'),
+  reaction: z.enum(['love', 'like', 'dislike', 'laugh', 'exclaim', 'question', 'unknown']),
+  message_type: z.literal('reaction'),
+});
+
+const messageTimeoutPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('message_timeout'),
+  error_code: z.number(),
+});
+
+const groupCreatedPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('group_created'),
+  group: z.object({
+    group_id: z.string(),
+    name: z.string(),
+    participants: z.array(z.string()),
+  }),
+});
+
+export const loopMessageWebhookPayloadSchema = z.discriminatedUnion('alert_type', [
+  messageInboundPayloadSchema,
+  messageScheduledPayloadSchema,
+  messageFailedPayloadSchema,
+  messageSentPayloadSchema,
+  messageReactionPayloadSchema,
+  messageTimeoutPayloadSchema,
+  groupCreatedPayloadSchema,
+]);
+
 export type LoopMessageSendRequest = z.infer<typeof loopMessageSendRequestSchema>;
 export type LoopMessageSendResponse = z.infer<typeof loopMessageSendResponseSchema>;
 export type LoopMessageError = z.infer<typeof loopMessageErrorSchema>;
+export type LoopMessageWebhookPayload = z.infer<typeof loopMessageWebhookPayloadSchema>;
