@@ -2,6 +2,7 @@
   "name": "poppy",
   "private": true,
   "scripts": {
+    "tunnel": "ngrok http --url=pyramidical-ethelene-cognoscitive.ngrok-free.app 3000",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
