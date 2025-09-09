@@ -5,7 +5,8 @@
       "Bash(mkdir:*)",
       "Bash(pnpm install:*)",
       "Bash(pnpm run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:docs.loopmessage.com)"
     ],
     "deny": [],
     "ask": []

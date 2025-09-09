@@ -1,0 +1,15 @@
+{
+  "name": "@poppy/types",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc ./src/** --noEmit"
+  },
+  "devDependencies": {
+    "@poppy/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
