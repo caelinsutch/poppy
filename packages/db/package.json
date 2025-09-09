@@ -5,5 +5,13 @@
   "exports": {
     "./*": "./src/*"
   },
-  "dependencies": {  }
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "drizzle-orm": "^0.44.5",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4",
+    "tsx": "catalog:"
+  }
 }

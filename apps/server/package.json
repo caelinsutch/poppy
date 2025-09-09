@@ -20,7 +20,7 @@
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",
     "@types/node": "^24.3.1",
-    "tsx": "^4.20.5",
+    "tsx": "catalog:",
     "typescript": "catalog:"
   }
 }
