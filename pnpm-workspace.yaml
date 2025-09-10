@@ -1,8 +1,11 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
 
 catalog:
   typescript: 5.9.2
   zod: 4.1.5
   tsx: 4.20.5
+
+onlyBuiltDependencies:
+  - supabase
