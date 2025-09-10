@@ -40,6 +40,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
     };
     Reply: { success: boolean };
   }>('/api/webhooks/loop-message', async (request, reply) => {
+    server.log.info(request.body, 'Received webhook payload');
     const validation = loopMessageWebhookPayloadSchema.safeParse(request.body);
     
     if (!validation.success) {

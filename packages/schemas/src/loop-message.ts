@@ -86,6 +86,10 @@ const groupCreatedPayloadSchema = baseWebhookPayloadSchema.extend({
   }),
 });
 
+const conversationInitiatedPayloadSchema = baseWebhookPayloadSchema.extend({
+  alert_type: z.literal('conversation_initiated'),
+});
+
 export const loopMessageWebhookPayloadSchema = z.discriminatedUnion('alert_type', [
   messageInboundPayloadSchema,
   messageScheduledPayloadSchema,
