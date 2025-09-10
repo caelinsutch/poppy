@@ -6,7 +6,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc . --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@poppy/schemas": "workspace:*",

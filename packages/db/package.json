@@ -2,8 +2,18 @@
   "name": "@poppy/db",
   "version": "0.0.1",
   "private": true,
+  "main": "index.js",
   "exports": {
     "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/seed.ts",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
     "dotenv": "^17.2.2",
@@ -11,6 +21,7 @@
     "postgres": "^3.4.7"
   },
   "devDependencies": {
+    "@poppy/typescript-config": "workspace:*",
     "drizzle-kit": "^0.31.4",
     "tsx": "catalog:"
   }
