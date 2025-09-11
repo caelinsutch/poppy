@@ -6,7 +6,10 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm run:*)",
       "Bash(curl:*)",
-      "WebFetch(domain:docs.loopmessage.com)"
+      "WebFetch(domain:docs.loopmessage.com)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
