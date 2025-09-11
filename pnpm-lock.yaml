@@ -104,6 +104,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@poppy/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2

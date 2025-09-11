@@ -1,11 +1,10 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+export * from './tables/users';
+export * from './tables/messaging';
+export * from './tables/tasks';
+export * from './tables/restaurants';
+export * from './tables/enums';
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-
-export type InsertUser = typeof users.$inferInsert;
-export type SelectUser = typeof users.$inferSelect;
+export * from './relations/users';
+export * from './relations/messaging';
+export * from './relations/tasks';
+export * from './relations/restaurants';  
