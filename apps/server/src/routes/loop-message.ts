@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { loopMessageSendRequestSchema, loopMessageWebhookPayloadSchema, type LoopMessageSendResponse, type LoopMessageWebhookPayload } from '@poppy/schemas';
 import { loopClient } from '../clients/loop-message';
 import { env } from '../env';
+import { handleMessageInbound } from '../services/message-inbound-handler';
 
 
 export async function loopMessageRoutes(server: FastifyInstance) {
@@ -54,11 +55,10 @@ export async function loopMessageRoutes(server: FastifyInstance) {
     try {
       switch (payload.alert_type) {
         case 'message_inbound':
-          server.log.info({ 
-            recipient: payload.recipient, 
-            message_type: payload.message_type,
-            text: payload.text.substring(0, 100)
-          }, 'Received inbound message');
+          await handleMessageInbound({
+            payload,
+            logger: server.log
+          });
           break;
           
         case 'message_sent':
