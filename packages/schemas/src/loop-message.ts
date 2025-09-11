@@ -4,7 +4,7 @@ export const loopMessageSendRequestSchema = z.object({
   recipient: z.string().min(1, 'Recipient is required'),
   text: z.string().min(1, 'Text is required').max(10000, 'Text must be less than 10,000 characters'),
   sender_name: z.string().min(1, 'Sender name is required'),
-  attachments: z.array(z.string().url().startsWith('https://')).max(3).optional(),
+  attachments: z.array(z.url().startsWith('https://')).max(3).optional(),
   timeout: z.number().optional(),
   passthrough: z.any().optional(),
   status_callback: z.url().optional(),

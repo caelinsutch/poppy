@@ -18,7 +18,8 @@
   "dependencies": {
     "dotenv": "^17.2.2",
     "drizzle-orm": "^0.44.5",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "@poppy/schemas": "workspace:*"
   },
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",
