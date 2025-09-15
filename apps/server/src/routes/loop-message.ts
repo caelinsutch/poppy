@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { loopMessageSendRequestSchema, loopMessageWebhookPayloadSchema, type LoopMessageSendResponse, type LoopMessageWebhookPayload } from '@poppy/schemas';
 import { loopClient } from '../clients/loop-message';
 import { env } from '../env';
-import { handleMessageInbound } from '../services/message-inbound-handler';
+import { handleMessageInbound } from '../services/loop-message-inbound-handler';
 
 
 export async function loopMessageRoutes(server: FastifyInstance) {
@@ -57,6 +57,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
         case 'message_inbound':
           await handleMessageInbound({
             payload,
+            rawPayload: request.body,
             logger: server.log
           });
           break;

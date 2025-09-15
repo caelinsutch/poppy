@@ -1,14 +1,14 @@
 {
-  "name": "@poppy/schemas",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@poppy/lib",
+  "version": "0.0.0",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "ai": "catalog:",
+    "@poppy/db": "workspace:*"
   },
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",

@@ -79,6 +79,7 @@ async function seed() {
     .insert(users)
     .values({
       id: demoUserId,
+      phoneNumber: "+1234567890",
       email: demoEmail,
     })
     .onConflictDoNothing();
