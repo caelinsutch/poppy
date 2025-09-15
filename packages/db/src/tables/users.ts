@@ -1,6 +1,7 @@
 import { pgTable, text, timestamp, uuid, jsonb, integer } from 'drizzle-orm/pg-core';
 import { channelTypeEnum } from './enums';
 import { LearnedPreferences, InferredPreferences } from '@poppy/schemas';
+import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -23,17 +24,25 @@ export const userChannels = pgTable("user_channels", {
 export const userPreferences = pgTable('user_preferences', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id).unique(),
-  
+
   // Explicitly learned/confirmed preferences
   learnedPreferences: jsonb('learned_preferences').notNull().$type<LearnedPreferences>(),
-  
+
   // Inferred preferences (from behavior)
   inferredPreferences: jsonb('inferred_preferences').$type<InferredPreferences>(),
-  
+
   // Stats
   totalReservations: integer('total_reservations').notNull().default(0),
   lastReservationAt: timestamp('last_reservation_at'),
-  
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// Type exports
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
+export type UserChannel = InferSelectModel<typeof userChannels>;
+export type NewUserChannel = InferInsertModel<typeof userChannels>;
+export type UserPreference = InferSelectModel<typeof userPreferences>;
+export type NewUserPreference = InferInsertModel<typeof userPreferences>;

@@ -1,6 +1,7 @@
 import { index, integer, jsonb, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { generateId, ToolUIPart } from "ai";
+import { convertToModelMessages, generateId, ToolUIPart, UIMessagePart } from "ai";
 import { userChannels } from './users';
+import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -18,7 +19,7 @@ export const messages = pgTable("messages", {
   conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
   channelId: uuid("channel_id").references(() => userChannels.id, { onDelete: "cascade" }).notNull(),
   createdAt: timestamp().defaultNow().notNull(),
-  // role: varchar().$type<MyUIMessage["role"]>().notNull(),
+  rawPayload: jsonb("raw_payload").notNull(),
 });
 
 export const parts = pgTable(
@@ -30,9 +31,17 @@ export const parts = pgTable(
     messageId: varchar()
       .references(() => messages.id, { onDelete: "cascade" })
       .notNull(),
-    type: varchar().$type<ToolUIPart["type"]>().notNull(),
+    type: varchar().$type<UIMessagePart<any, any>["type"]>().notNull(),
     content: jsonb().notNull(),
     createdAt: timestamp().defaultNow().notNull(),
     order: integer().notNull().default(0),
   }
 );
+
+// Type exports
+export type Conversation = InferSelectModel<typeof conversations>;
+export type NewConversation = InferInsertModel<typeof conversations>;
+export type Message = InferSelectModel<typeof messages>;
+export type NewMessage = InferInsertModel<typeof messages>;
+export type Part = InferSelectModel<typeof parts>;
+export type NewPart = InferInsertModel<typeof parts>;

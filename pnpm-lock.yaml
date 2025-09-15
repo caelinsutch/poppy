@@ -6,6 +6,12 @@ settings:
 
 catalogs:
   default:
+    ai:
+      specifier: 5.0.39
+      version: 5.0.39
+    drizzle-orm:
+      specifier: 0.44.5
+      version: 0.44.5
     tsx:
       specifier: 4.20.5
       version: 4.20.5
@@ -42,6 +48,12 @@ importers:
       '@poppy/clients':
         specifier: workspace:*
         version: link:../../packages/clients
+      '@poppy/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@poppy/lib':
+        specifier: workspace:*
+        version: link:../../packages/lib
       '@poppy/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -51,8 +63,11 @@ importers:
       '@t3-oss/env-core':
         specifier: ^0.13.8
         version: 0.13.8(typescript@5.9.2)(zod@4.1.5)
+      '@vercel/kv':
+        specifier: ^3.0.0
+        version: 3.0.0
       ai:
-        specifier: ^5.0.39
+        specifier: 'catalog:'
         version: 5.0.39(zod@4.1.5)
       anchorbrowser:
         specifier: ^0.4.0
@@ -60,6 +75,9 @@ importers:
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.44.5(@opentelemetry/api@1.9.0)(@upstash/redis@1.35.3)(postgres@3.4.7)
       fastify:
         specifier: ^5.6.0
         version: 5.6.0
@@ -111,8 +129,8 @@ importers:
         specifier: ^17.2.2
         version: 17.2.2
       drizzle-orm:
-        specifier: ^0.44.5
-        version: 0.44.5(@opentelemetry/api@1.9.0)(postgres@3.4.7)
+        specifier: 'catalog:'
+        version: 0.44.5(@opentelemetry/api@1.9.0)(@upstash/redis@1.35.3)(postgres@3.4.7)
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
@@ -126,6 +144,22 @@ importers:
       tsx:
         specifier: 'catalog:'
         version: 4.20.5
+
+  packages/lib:
+    dependencies:
+      '@poppy/db':
+        specifier: workspace:*
+        version: link:../db
+      ai:
+        specifier: 'catalog:'
+        version: 5.0.39(zod@4.1.5)
+    devDependencies:
+      '@poppy/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
 
   packages/schemas:
     dependencies:
@@ -581,6 +615,13 @@ packages:
 
   '@types/node@24.3.1':
     resolution: {integrity: sha512-3vXmQDXy+woz+gnrTvuvNrPzekOi+Ds0ReMxw0LzBiK3a+1k0kQn9f2NWk+lgD4rJehFUmYy2gMhJ2ZI+7YP9g==}
+
+  '@upstash/redis@1.35.3':
+    resolution: {integrity: sha512-hSjv66NOuahW3MisRGlSgoszU2uONAY2l5Qo3Sae8OT3/Tng9K+2/cBRuyPBX8egwEGcNNCF9+r0V6grNnhL+w==}
+
+  '@vercel/kv@3.0.0':
+    resolution: {integrity: sha512-pKT8fRnfyYk2MgvyB6fn6ipJPCdfZwiKDdw7vB+HL50rjboEBHDVBEcnwfkEpVSp2AjNtoaOUH7zG+bVC/rvSg==}
+    engines: {node: '>=14.6'}
 
   abstract-logging@2.0.1:
     resolution: {integrity: sha512-2BjRTZxTPvheOvGbBslFSYOUkr+SjPtOnrLP33f+VIWLzezQpZcqVg7ja3L4dBXmzzgwT+a029jRx5PCi3JuiA==}
@@ -1042,6 +1083,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  uncrypto@0.1.3:
+    resolution: {integrity: sha512-Ql87qFHB3s/De2ClA9e0gsnS6zXG27SkTiSJwjCc9MebbfapQfuPzumMIUMi38ezPZVNFcHI9sUIepeQfw8J8Q==}
+
   undici-types@7.10.0:
     resolution: {integrity: sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag==}
 
@@ -1332,6 +1376,14 @@ snapshots:
     dependencies:
       undici-types: 7.10.0
 
+  '@upstash/redis@1.35.3':
+    dependencies:
+      uncrypto: 0.1.3
+
+  '@vercel/kv@3.0.0':
+    dependencies:
+      '@upstash/redis': 1.35.3
+
   abstract-logging@2.0.1: {}
 
   agent-base@7.1.4: {}
@@ -1405,9 +1457,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.5(@opentelemetry/api@1.9.0)(postgres@3.4.7):
+  drizzle-orm@0.44.5(@opentelemetry/api@1.9.0)(@upstash/redis@1.35.3)(postgres@3.4.7):
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
+      '@upstash/redis': 1.35.3
       postgres: 3.4.7
 
   esbuild-register@3.6.0(esbuild@0.25.9):
@@ -1728,6 +1781,8 @@ snapshots:
       turbo-windows-arm64: 2.5.6
 
   typescript@5.9.2: {}
+
+  uncrypto@0.1.3: {}
 
   undici-types@7.10.0: {}
 
