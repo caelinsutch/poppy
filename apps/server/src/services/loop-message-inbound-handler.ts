@@ -1,7 +1,7 @@
 import type { LoopMessageWebhookPayload } from '@poppy/schemas';
 import type { FastifyBaseLogger } from 'fastify';
 import type { UIMessage, TextPart } from 'ai';
-import { db, messages, parts, conversations, userChannels, users, channelType, type NewMessage, type Part } from '@poppy/db';
+import { db, messages, parts, conversations, userChannels, users, type NewMessage, type Part } from '@poppy/db';
 import { eq, and } from 'drizzle-orm';
 import { generateId } from 'ai';
 import { uiMessageToDBFormat } from '@poppy/lib';
@@ -85,7 +85,7 @@ const storeMessages = async (
         .insert(userChannels)
         .values({
           userId: user.id,
-          channelType: channelType.enumValues[0], // Use 'imessage' or appropriate type
+          channelType: "sms",
           channelIdentifier: primaryPayload.recipient,
         })
         .returning();
@@ -210,7 +210,7 @@ export const handleMessageInbound = async (options: MessageInboundHandlerOptions
     // Process all debounced messages together
     const storedData = await storeMessages(debouncedMessages, logger);
     if (storedData) {
-      await processMessage({ ...storedData, logger });
+      await processMessage({ ...storedData, logger: logger as FastifyBaseLogger  });
     }
 
     // Clear the debouncer after successful processing
