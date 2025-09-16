@@ -1,7 +1,7 @@
 import type { LoopMessageWebhookPayload } from '@poppy/schemas';
 import type { FastifyBaseLogger } from 'fastify';
 import type { UIMessage, TextPart } from 'ai';
-import { db, messages, parts, conversations, userChannels, users, type NewMessage, type Part } from '@poppy/db';
+import { db, messages, parts, conversations, userChannels, users, type Message, type Part } from '@poppy/db';
 import { eq, and } from 'drizzle-orm';
 import { generateId } from 'ai';
 import { uiMessageToDBFormat } from '@poppy/lib';
@@ -17,10 +17,54 @@ export interface MessageInboundHandlerOptions {
 const waitFor = (ms: number): Promise<void> =>
   new Promise(resolve => setTimeout(resolve, ms));
 
+const getConversationHistory = async (
+  conversationId: string,
+  logger?: FastifyBaseLogger
+): Promise<{ message: Message; parts: Part[] }[]> => {
+  // Fetch all messages in the conversation with their parts
+  const conversationMessages = await db
+    .select({
+      message: messages,
+      parts: parts,
+    })
+    .from(messages)
+    .leftJoin(parts, eq(parts.messageId, messages.id))
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(messages.createdAt);
+
+  // Group parts by message
+  const messageMap = new Map<string, { message: Message; parts: Part[] }>();
+
+  for (const row of conversationMessages) {
+    if (!row.message) continue;
+
+    if (!messageMap.has(row.message.id)) {
+      messageMap.set(row.message.id, {
+        message: row.message,
+        parts: [],
+      });
+    }
+
+    if (row.parts) {
+      messageMap.get(row.message.id)!.parts.push(row.parts);
+    }
+  }
+
+  const messagesWithParts = Array.from(messageMap.values());
+
+  logger?.info({
+    conversationId,
+    messageCount: messagesWithParts.length,
+    totalParts: messagesWithParts.reduce((acc, m) => acc + m.parts.length, 0),
+  }, 'Fetched conversation history with parts');
+
+  return messagesWithParts;
+};
+
 const storeMessages = async (
   payloads: LoopMessageWebhookPayload[],
-  logger?: FastifyBaseLogger
-): Promise<{ message: NewMessage; parts: Part[] } | null> => {
+  logger?: FastifyBaseLogger,
+): Promise<{ message: Message; parts: Part[]; channelId: string } | null> => {
   if (payloads.length === 0) {
     logger?.warn('No messages to store');
     return null;
@@ -127,24 +171,29 @@ const storeMessages = async (
       uiMessage,
       conversationId,
       channel.id,
-      primaryPayload // Pass the primary webhook payload
+      primaryPayload, // Pass the primary webhook payload
+      primaryPayload.recipient, // Pass the recipient phone number
+      primaryPayload.sender_name, // Pass the sender phone number for SMS channels
+      false // isOutbound = false for inbound messages
     );
 
-    // Parallelize message and parts insertion
-    const [insertedMessages, insertedParts] = await Promise.all([
-      db.insert(messages).values(message).returning(),
-      db.insert(parts).values(partsData).returning(),
-    ]);
+    // Insert message first, then parts (due to foreign key constraint)
+    const [insertedMessage] = await db.insert(messages).values(message).returning();
+    const insertedParts = await db.insert(parts).values(partsData).returning();
 
     logger?.info({
       messageId: uiMessage.id,
       conversationId,
-      channelId: channel.id
+      channelId: channel.id,
+      sender: message.sender,
+      recipient: message.recipient,
+      isOutbound: false
     }, 'Successfully stored inbound message');
 
     return {
-      message: insertedMessages[0],
-      parts: insertedParts
+      message: insertedMessage,
+      parts: insertedParts,
+      channelId: channel.id
     };
 
   } catch (error) {
@@ -210,7 +259,18 @@ export const handleMessageInbound = async (options: MessageInboundHandlerOptions
     // Process all debounced messages together
     const storedData = await storeMessages(debouncedMessages, logger);
     if (storedData) {
-      await processMessage({ ...storedData, logger: logger as FastifyBaseLogger  });
+      // Fetch full conversation history with parts
+      const conversationHistory = await getConversationHistory(
+        storedData.message.conversationId,
+        logger
+      );
+
+      await processMessage({
+        currentMessage: storedData.message,
+        currentParts: storedData.parts,
+        conversationHistory,
+        logger: logger as FastifyBaseLogger
+      });
     }
 
     // Clear the debouncer after successful processing

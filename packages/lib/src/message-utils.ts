@@ -40,12 +40,18 @@ export function uiMessageToDBFormat(
   uiMessage: UIMessage,
   conversationId: string,
   channelId: string,
-  rawPayload?: unknown
+  rawPayload?: unknown,
+  sender?: string,
+  recipient?: string,
+  isOutbound: boolean = false
 ): { message: NewMessage; parts: NewPart[] } {
   const messageData: NewMessage = {
     id: uiMessage.id,
     conversationId,
     channelId,
+    sender,
+    recipient,
+    isOutbound,
     rawPayload: rawPayload || { role: uiMessage.role },
   };
 

@@ -39,7 +39,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
     Headers: {
       authorization?: string;
     };
-    Reply: { success: boolean };
+    Reply: { success: boolean, typing?: number, read?: boolean };
   }>('/api/webhooks/loop-message', async (request, reply) => {
     server.log.info(request.body, 'Received webhook payload');
     const validation = loopMessageWebhookPayloadSchema.safeParse(request.body);
@@ -55,7 +55,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
     try {
       switch (payload.alert_type) {
         case 'message_inbound':
-          await handleMessageInbound({
+          handleMessageInbound({
             payload,
             rawPayload: request.body,
             logger: server.log
@@ -109,7 +109,10 @@ export async function loopMessageRoutes(server: FastifyInstance) {
           break;
       }
       
-      return reply.code(200).send({ success: true });
+      return reply.code(200).send({ success: true,
+        typing: 5,
+        read: true
+       });
       
     } catch (error) {
       server.log.error(error, 'Error processing webhook');

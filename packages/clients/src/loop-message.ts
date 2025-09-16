@@ -19,8 +19,9 @@ function createWretchClient(config: LoopMessageClientConfig) {
 }
 
 async function handleError(error: any): Promise<LoopMessageSendResponse> {
+  console.log(error)
   if (error.status) {
-    const errorData = await error.json().catch(() => ({}));
+    const errorData = error.message
     
     if (error.status === 402) {
       return {
