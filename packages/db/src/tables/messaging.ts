@@ -1,14 +1,26 @@
-import { boolean, index, integer, jsonb, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, primaryKey, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { convertToModelMessages, generateId, ToolUIPart, UIMessagePart } from "ai";
-import { userChannels } from './users';
+import { users, userChannels } from './users';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userIds: jsonb("user_ids").notNull(), // array of user ids
   channelId: uuid("channel_id").references(() => userChannels.id).notNull(),
+  isGroup: boolean("is_group").notNull().default(false), // Explicitly mark group conversations
+  loopMessageGroupId: varchar("loop_message_group_id"), // Loop Message group ID for group conversations
+  sender: varchar("sender").notNull(), // The phone number we send from (our bot)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Junction table for many-to-many relationship between users and conversations
+export const conversationParticipants = pgTable("conversation_participants", {
+  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
 }, (table) => ({
-  userIdx: index("conversation_user_idx").on(table.userIds),
+  pk: primaryKey({ columns: [table.conversationId, table.userId] }),
+  userIdx: index("participants_user_idx").on(table.userId),
+  conversationIdx: index("participants_conversation_idx").on(table.conversationId),
 }));
 
 export const messages = pgTable("messages", {
@@ -17,12 +29,14 @@ export const messages = pgTable("messages", {
     .$defaultFn(() => generateId()),
   conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
   channelId: uuid("channel_id").references(() => userChannels.id, { onDelete: "cascade" }).notNull(),
-  sender: varchar("sender"), // Phone number or identifier of the sender (for SMS channels)
-  recipient: varchar("recipient"), // Phone number or identifier of the recipient (for SMS channels)
+  userId: uuid("user_id").references(() => users.id), // Optional if not group message
   isOutbound: boolean("is_outbound").notNull().default(false),
-  createdAt: timestamp().defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   rawPayload: jsonb("raw_payload").notNull(),
-});
+}, (table) => ({
+  userIdx: index("messages_user_idx").on(table.userId),
+  conversationIdx: index("messages_conversation_idx").on(table.conversationId),
+}));
 
 export const parts = pgTable(
   "parts",
@@ -43,6 +57,8 @@ export const parts = pgTable(
 // Type exports
 export type Conversation = InferSelectModel<typeof conversations>;
 export type NewConversation = InferInsertModel<typeof conversations>;
+export type ConversationParticipant = InferSelectModel<typeof conversationParticipants>;
+export type NewConversationParticipant = InferInsertModel<typeof conversationParticipants>;
 export type Message = InferSelectModel<typeof messages>;
 export type NewMessage = InferInsertModel<typeof messages>;
 export type Part = InferSelectModel<typeof parts>;

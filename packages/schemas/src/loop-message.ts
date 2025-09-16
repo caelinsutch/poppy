@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const loopMessageSendRequestSchema = z.object({
-  recipient: z.string().min(1, 'Recipient is required'),
+// Base fields shared by both individual and group messages
+const baseMessageFields = {
   text: z.string().min(1, 'Text is required').max(10000, 'Text must be less than 10,000 characters'),
   sender_name: z.string().min(1, 'Sender name is required'),
   attachments: z.array(z.url().startsWith('https://')).max(3).optional(),
@@ -10,7 +10,25 @@ export const loopMessageSendRequestSchema = z.object({
   status_callback: z.url().optional(),
   effect: z.string().optional(),
   service: z.enum(['iMessage', 'SMS']).optional(),
+};
+
+// Individual message (has recipient, no group_id)
+const individualMessageSchema = z.object({
+  recipient: z.string().min(1, 'Recipient is required'),
+  ...baseMessageFields,
 });
+
+// Group message (has group_id, no recipient)
+const groupMessageSchema = z.object({
+  group_id: z.string().min(1, 'Group ID is required'),
+  ...baseMessageFields,
+});
+
+// Union type: either individual or group message
+export const loopMessageSendRequestSchema = z.union([
+  individualMessageSchema,
+  groupMessageSchema,
+]);
 
 export const loopMessageSendResponseSchema = z.object({
   success: z.boolean(),
@@ -38,6 +56,7 @@ const baseWebhookPayloadSchema = z.object({
   delivery_type: z.enum(['imessage', 'sms']).optional(),
 });
 
+// For inbound messages, recipient is the user who's texting us, sender is our bot's phone number
 const messageInboundPayloadSchema = baseWebhookPayloadSchema.extend({
   alert_type: z.literal('message_inbound'),
   message_type: z.enum(['text', 'reaction', 'audio', 'attachments', 'sticker', 'location']).optional(),
