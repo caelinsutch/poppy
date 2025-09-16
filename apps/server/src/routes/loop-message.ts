@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { loopMessageSendRequestSchema, loopMessageWebhookPayloadSchema, type LoopMessageSendResponse, type LoopMessageWebhookPayload } from '@poppy/schemas';
 import { loopClient } from '../clients/loop-message';
 import { env } from '../env';
-import { handleMessageInbound } from '../services/loop-message-inbound-handler';
+import { handleMessageInbound } from '../services/loop/loop-message-inbound-handler';
 
 
 export async function loopMessageRoutes(server: FastifyInstance) {
@@ -68,7 +68,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
             success: payload.success,
             message_id: payload.message_id 
           }, 'Message sent successfully');
-          break;
+          return reply.code(200).send({ success: true, read: true });
           
         case 'message_failed':
           server.log.error({ 
@@ -76,7 +76,8 @@ export async function loopMessageRoutes(server: FastifyInstance) {
             error_code: payload.error_code,
             message_id: payload.message_id 
           }, 'Message failed to send');
-          break;
+          return reply.code(200).send({ success: true, read: true });
+
           
         case 'message_timeout':
           server.log.warn({ 

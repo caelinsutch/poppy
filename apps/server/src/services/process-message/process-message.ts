@@ -1,12 +1,10 @@
 import type { Message, Part } from '@poppy/db';
 import type { FastifyBaseLogger } from 'fastify';
-import type { UIMessage, TextPart } from 'ai';
-import { convertToModelMessages, generateId } from 'ai';
+import { convertToModelMessages } from 'ai';
 import { generateText } from 'ai';
 import { dbMessageToUIMessage } from '@poppy/lib';
 import { openai } from '../../clients/openai';
-import { sendLoopMessage } from './send-loop-message';
-import { saveAssistantMessage } from './save-assistant-message';
+import { sendLoopMessage } from '../loop/send-loop-message';
 
 export interface ProcessMessageOptions {
   currentMessage: Message;
@@ -49,45 +47,17 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
       usage
     }, 'Generated AI response');
 
-    // Extract sender and recipient from the incoming message
-    // For outbound messages, we swap them (we're sending FROM the recipient TO the sender)
-    const sender = currentMessage.recipient || '';
-    const recipient = currentMessage.sender || '';
-
-
-    // First, send the message via Loop Message
+    // Send the message via Loop Message and save to database
     const sendResult = await sendLoopMessage({
       text,
-      sender,
-      recipient,
-    });
-
-    // Only save to database after successful send
-    const assistantMessage: UIMessage = {
-      id: generateId(),
-      role: 'assistant',
-      parts: [
-        {
-          type: 'text',
-          text: text,
-        } as TextPart,
-      ],
-    };
-
-    await saveAssistantMessage({
-      assistantMessage,
       conversationId: currentMessage.conversationId,
-      channelId: currentMessage.channelId,
-      loopMessageId: sendResult.loopMessageId,
-      sender,
-      recipient,
       logger,
     });
 
     logger?.info({
-      assistantMessageId: assistantMessage.id,
+      assistantMessageId: sendResult.message.id,
       loopMessageId: sendResult.loopMessageId,
-      recipient: sendResult.recipient,
+      conversationId: sendResult.conversationId,
     }, 'Successfully processed and sent message');
 
   } catch (error) {
