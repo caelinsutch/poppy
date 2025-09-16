@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { convertToModelMessages, generateId, ToolUIPart, UIMessagePart } from "ai";
 import { userChannels } from './users';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
@@ -7,7 +7,6 @@ export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   userIds: jsonb("user_ids").notNull(), // array of user ids
   channelId: uuid("channel_id").references(() => userChannels.id).notNull(),
-  contextId: uuid("context_id"), // links to specific feature context
 }, (table) => ({
   userIdx: index("conversation_user_idx").on(table.userIds),
 }));
@@ -18,6 +17,9 @@ export const messages = pgTable("messages", {
     .$defaultFn(() => generateId()),
   conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
   channelId: uuid("channel_id").references(() => userChannels.id, { onDelete: "cascade" }).notNull(),
+  sender: varchar("sender"), // Phone number or identifier of the sender (for SMS channels)
+  recipient: varchar("recipient"), // Phone number or identifier of the recipient (for SMS channels)
+  isOutbound: boolean("is_outbound").notNull().default(false),
   createdAt: timestamp().defaultNow().notNull(),
   rawPayload: jsonb("raw_payload").notNull(),
 });
