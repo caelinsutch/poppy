@@ -1,11 +1,11 @@
 import { Message, Part, db, users, conversations, conversationParticipants, NewPart, messages, parts, NewConversation } from "@poppy/db";
-import { LoopMessageWebhookPayload } from "@poppy/schemas";
+import { LoopMessageInboundPayload, LoopMessageWebhookPayload } from "@poppy/schemas";
 import { TextPart, UIMessage, generateId } from "ai";
 import { inArray, eq, sql, and } from "drizzle-orm";
 import { FastifyBaseLogger } from "fastify";
 
 export const storeLoopMessages = async (
-  payloads: LoopMessageWebhookPayload[],
+  payloads: LoopMessageInboundPayload[],
   logger?: FastifyBaseLogger,
 ): Promise<{ message: Message; parts: Part[] } | null> => {
   if (payloads.length === 0) {
@@ -44,26 +44,19 @@ export const storeLoopMessages = async (
     let loopMessageGroupId: string | undefined;
     const participants = new Set<string>();
 
-    if (primaryPayload.alert_type === 'group_created') {
-      // For group_created, extract group ID and participants
-      const groupPayload = primaryPayload as any;
-      if (groupPayload.group) {
-        loopMessageGroupId = groupPayload.group.group_id;
-        if (groupPayload.group.participants) {
-          groupPayload.group.participants.forEach((p: string) => participants.add(p));
-        }
+    // Check if this is a group message (has a group field)
+    const groupPayload = primaryPayload as any;
+    if (groupPayload.group) {
+      // Extract group ID and participants from group messages
+      loopMessageGroupId = groupPayload.group.group_id;
+      if (groupPayload.group.participants) {
+        groupPayload.group.participants.forEach((p: string) => participants.add(p));
       }
-    } else if (primaryPayload.alert_type === 'message_inbound' && primaryPayload.thread_id?.startsWith('group:')) {
-      if (primaryPayload.recipient) {
-        participants.add(primaryPayload.recipient);
-      }
-      participants.add(primaryPayload.recipient);
     } else {
-      // For regular 1-on-1 messages
+      // For regular 1-on-1 messages, add recipient
       if (primaryPayload.recipient) {
         participants.add(primaryPayload.recipient);
       }
-      participants.add(primaryPayload.recipient);
     }
 
     const isGroupMessage = !!loopMessageGroupId;

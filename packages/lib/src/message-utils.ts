@@ -4,20 +4,29 @@ import type { UIMessage, UIMessagePart } from 'ai';
 /**
  * Convert a database message with its parts to a UIMessage
  */
-export function dbMessageToUIMessage(
+export const dbMessageToUIMessage = (
   message: Message,
-  messageParts: Part[]
-): UIMessage {
+  messageParts: Part[],
+  isGroup?: boolean
+): UIMessage => {
   // Sort parts by order
   const sortedParts = messageParts.sort((a, b) => a.order - b.order);
 
   // Convert DB parts to UI parts
-  const uiParts: UIMessagePart<any, any>[] = sortedParts.map(part => {
+  const uiParts: UIMessagePart<any, any>[] = sortedParts.map((part, index) => {
     // The content is stored as JSON, which includes the part type and data
     const content = part.content as any;
 
     // Remove rawPayload from content if it exists (we store it separately)
     const { rawPayload, ...partContent } = content;
+
+    // For group messages, prepend user ID to the first text part
+    if (isGroup && message.userId && index === 0 && partContent.type === 'text') {
+      return {
+        ...partContent,
+        text: `${message.userId}: ${partContent.text}`,
+      } as UIMessagePart<any, any>;
+    }
 
     return partContent as UIMessagePart<any, any>;
   });
@@ -31,17 +40,17 @@ export function dbMessageToUIMessage(
     role,
     parts: uiParts,
   };
-}
+};
 
 /**
  * Convert a UIMessage to database format (message and parts)
  */
-export function uiMessageToDBFormat(
+export const uiMessageToDBFormat = (
   uiMessage: UIMessage,
   conversationId: string,
   rawPayload?: unknown,
   isOutbound: boolean = false
-): { message: NewMessage; parts: NewPart[] } {
+): { message: NewMessage; parts: NewPart[] } => {
   const messageData: NewMessage = {
     id: uiMessage.id,
     conversationId,
@@ -64,18 +73,15 @@ export function uiMessageToDBFormat(
     message: messageData,
     parts: partsData,
   };
-}
+};
 
 /**
  * Convert multiple database messages to UIMessages
  */
-export function dbMessagesToUIMessages(
+export const dbMessagesToUIMessages = (
   messagesWithParts: Array<{
     message: Message;
     parts: Part[];
-  }>
-): UIMessage[] {
-  return messagesWithParts.map(({ message, parts }) =>
-    dbMessageToUIMessage(message, parts)
-  );
-}
+  }>,
+  isGroup?: boolean
+): UIMessage[] => messagesWithParts.map(({ message, parts }) => dbMessageToUIMessage(message, parts, isGroup));  
