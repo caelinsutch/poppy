@@ -111,7 +111,7 @@ const groupCreatedPayloadSchema = baseWebhookPayloadSchema.extend({
 });
 
 const conversationInitiatedPayloadSchema = baseWebhookPayloadSchema.extend({
-  alert_type: z.literal('conversation_initiated'),
+  alert_type: z.literal('conversation_inited'),
 });
 
 export const loopMessageWebhookPayloadSchema = z.discriminatedUnion('alert_type', [
@@ -122,6 +122,7 @@ export const loopMessageWebhookPayloadSchema = z.discriminatedUnion('alert_type'
   messageReactionPayloadSchema,
   messageTimeoutPayloadSchema,
   groupCreatedPayloadSchema,
+  conversationInitiatedPayloadSchema
 ]);
 
 export type LoopMessageSendRequest = z.infer<typeof loopMessageSendRequestSchema>;
