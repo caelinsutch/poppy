@@ -87,7 +87,6 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   const messageData = {
     id: assistantMessage.id,
     conversationId,
-    channelId: conversation.channelId,
     userId: null, // Assistant messages don't have a userId
     isOutbound: true, // Assistant messages are outbound
     rawPayload: {
@@ -111,7 +110,6 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   logger?.info({
     assistantMessageId: assistantMessage.id,
     conversationId,
-    channelId: conversation.channelId,
     loopMessageId: sendResponse.message_id,
   }, 'Sent and saved assistant message');
 

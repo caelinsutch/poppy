@@ -1,4 +1,4 @@
-import type { Message, Part } from '@poppy/db';
+import type { Message, Part, Conversation, User } from '@poppy/db';
 import type { FastifyBaseLogger } from 'fastify';
 import { convertToModelMessages } from 'ai';
 import { generateText } from 'ai';
@@ -9,19 +9,22 @@ import { sendLoopMessage } from '../loop/send-loop-message';
 export interface ProcessMessageOptions {
   currentMessage: Message;
   currentParts: Part[];
+  conversation: Conversation;
   conversationHistory: { message: Message; parts: Part[] }[];
+  participants: User[];
   logger?: FastifyBaseLogger;
 }
 
 export const processMessage = async (options: ProcessMessageOptions): Promise<void> => {
-  const { currentMessage, currentParts, conversationHistory, logger } = options;
+  const { currentMessage, currentParts, conversation, conversationHistory, participants, logger } = options;
 
   logger?.info({
     messageId: currentMessage.id,
     conversationId: currentMessage.conversationId,
-    channelId: currentMessage.channelId,
     partsCount: currentParts.length,
-    historyCount: conversationHistory.length
+    historyCount: conversationHistory.length,
+    participantCount: participants.length,
+    isGroup: conversation?.isGroup || false
   }, 'Processing message with conversation history');
 
   // Convert all messages to UI message format

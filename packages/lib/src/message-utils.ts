@@ -39,14 +39,12 @@ export function dbMessageToUIMessage(
 export function uiMessageToDBFormat(
   uiMessage: UIMessage,
   conversationId: string,
-  channelId: string,
   rawPayload?: unknown,
   isOutbound: boolean = false
 ): { message: NewMessage; parts: NewPart[] } {
   const messageData: NewMessage = {
     id: uiMessage.id,
     conversationId,
-    channelId,
     isOutbound,
     rawPayload: rawPayload || { role: uiMessage.role },
   };

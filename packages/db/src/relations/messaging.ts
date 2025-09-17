@@ -1,13 +1,9 @@
 import { relations } from 'drizzle-orm';
 import { conversations, conversationParticipants, messages, parts } from '../tables/messaging';
-import { users, userChannels } from '../tables/users';
+import { users } from '../tables/users';
 import { tasks } from '../tables/tasks';
 
-export const conversationsRelations = relations(conversations, ({ one, many }) => ({
-  channel: one(userChannels, {
-    fields: [conversations.channelId],
-    references: [userChannels.id],
-  }),
+export const conversationsRelations = relations(conversations, ({ many }) => ({
   messages: many(messages),
   participants: many(conversationParticipants),
 }));
@@ -27,10 +23,6 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
-  }),
-  channel: one(userChannels, {
-    fields: [messages.channelId],
-    references: [userChannels.id],
   }),
   user: one(users, {
     fields: [messages.userId],
