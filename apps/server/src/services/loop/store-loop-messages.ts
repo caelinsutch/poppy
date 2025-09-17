@@ -45,12 +45,11 @@ export const storeLoopMessages = async (
     const participants = new Set<string>();
 
     // Check if this is a group message (has a group field)
-    const groupPayload = primaryPayload as any;
-    if (groupPayload.group) {
+    if (primaryPayload.group) {
       // Extract group ID and participants from group messages
-      loopMessageGroupId = groupPayload.group.group_id;
-      if (groupPayload.group.participants) {
-        groupPayload.group.participants.forEach((p: string) => participants.add(p));
+      loopMessageGroupId = primaryPayload.group.group_id;
+      if (primaryPayload.group.participants) {
+        primaryPayload.group.participants.forEach((p: string) => participants.add(p));
       }
     } else {
       // For regular 1-on-1 messages, add recipient

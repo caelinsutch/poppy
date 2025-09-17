@@ -15,7 +15,6 @@ export class SmsDebouncer<T> {
 
   constructor(
     private readonly conversationId: string,
-    private readonly toNumber: string,
     private readonly debounceWindowMs: number = 10000,
   ) {
     this.cacheKey = smsDebouncerKey(conversationId);
