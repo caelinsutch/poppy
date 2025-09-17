@@ -43,10 +43,9 @@ export const loopMessageErrorSchema = z.object({
   status_code: z.number(),
 });
 
-const baseWebhookPayloadSchema = z.object({
+const baseWebhookCommonFields = {
   message_id: z.string(),
   webhook_id: z.string(),
-  recipient: z.string(),
   text: z.string(),
   sender_name: z.string().optional(),
   subject: z.string().optional(),
@@ -54,10 +53,48 @@ const baseWebhookPayloadSchema = z.object({
   sandbox: z.boolean().optional(),
   passthrough: z.string().optional(),
   delivery_type: z.enum(['imessage', 'sms']).optional(),
+};
+
+const webhookGroupSchema = z.object({
+  name: z.string(),
+  group_id: z.string(),
+  participants: z.array(z.string()),
 });
 
+// Base webhook must have either group or recipient (mutually exclusive)
+const baseWebhookWithGroup = z.object({
+  ...baseWebhookCommonFields,
+  group: webhookGroupSchema,
+  // If present, recipient must not be a value (reject strings)
+  recipient: z.never().optional(),
+});
+
+const baseWebhookWithRecipient = z.object({
+  ...baseWebhookCommonFields,
+  recipient: z.string(),
+  // If present, group must not be a value (reject objects)
+  group: z.never().optional(),
+});
+
+// Helper to build payloads that satisfy the base union (group XOR recipient)
+const buildPayloadWithEitherRecipientOrGroup = <T extends z.ZodRawShape>(
+  fields: T,
+) =>
+  z.union([
+    z.object({
+      ...baseWebhookCommonFields,
+      group: webhookGroupSchema,
+      ...fields,
+    }),
+    z.object({
+      ...baseWebhookCommonFields,
+      recipient: z.string(),
+      ...fields,
+    }),
+  ]);
+
 // For inbound messages, recipient is the user who's texting us, sender is our bot's phone number
-const messageInboundPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageInboundPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_inbound'),
   message_type: z.enum(['text', 'reaction', 'audio', 'attachments', 'sticker', 'location']).optional(),
   attachments: z.array(z.string()).optional(),
@@ -69,39 +106,36 @@ const messageInboundPayloadSchema = baseWebhookPayloadSchema.extend({
     text: z.string(),
     confidence: z.number(),
   }).optional(),
-  group: z.object({
-    name: z.string(),
-    group_id: z.string(),
-    participants: z.array(z.string()),
-  }).optional(),
 });
 
-const messageScheduledPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageScheduledPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_scheduled'),
 });
 
-const messageFailedPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageFailedPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_failed'),
   error_code: z.number(),
 });
 
-const messageSentPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageSentPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_sent'),
   success: z.boolean(),
 });
 
-const messageReactionPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageReactionPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_reaction'),
   reaction: z.enum(['love', 'like', 'dislike', 'laugh', 'exclaim', 'question', 'unknown']),
   message_type: z.literal('reaction'),
 });
 
-const messageTimeoutPayloadSchema = baseWebhookPayloadSchema.extend({
+const messageTimeoutPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('message_timeout'),
   error_code: z.number(),
 });
 
-const groupCreatedPayloadSchema = baseWebhookPayloadSchema.extend({
+// group_created events are always groups (no recipient variant)
+const groupCreatedPayloadSchema = z.object({
+  ...baseWebhookCommonFields,
   alert_type: z.literal('group_created'),
   group: z.object({
     group_id: z.string(),
@@ -110,11 +144,11 @@ const groupCreatedPayloadSchema = baseWebhookPayloadSchema.extend({
   }),
 });
 
-const conversationInitiatedPayloadSchema = baseWebhookPayloadSchema.extend({
+const conversationInitiatedPayloadSchema = buildPayloadWithEitherRecipientOrGroup({
   alert_type: z.literal('conversation_initiated'),
 });
 
-export const loopMessageWebhookPayloadSchema = z.discriminatedUnion('alert_type', [
+export const loopMessageWebhookPayloadSchema = z.union([
   messageInboundPayloadSchema,
   messageScheduledPayloadSchema,
   messageFailedPayloadSchema,
