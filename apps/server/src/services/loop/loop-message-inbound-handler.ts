@@ -34,8 +34,11 @@ export const handleMessageInbound = async (options: MessageInboundHandlerOptions
 
   // Create debouncer keyed by thread or sender_name and recipient
   // For inbound messages, we use thread_id if available, otherwise sender_name or a default
-  const senderKey = payload.sender_name + payload.recipient
-  const debouncer = new SmsDebouncer<LoopMessageWebhookPayload>(
+  const senderName = payload.sender_name ?? 'unknown';
+  const recipient = payload.recipient ?? 'unknown';
+  const groupId = payload.group?.group_id ?? 'unknown';
+  const senderKey = senderName + recipient + groupId;
+  const debouncer = new SmsDebouncer<LoopMessageInboundPayload>(
     senderKey,
     debounceTime
   );

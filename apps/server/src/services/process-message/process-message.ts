@@ -5,15 +5,9 @@ import { generateText } from 'ai';
 import { dbMessageToUIMessage } from '@poppy/lib';
 import { openai } from '../../clients/openai';
 import { sendLoopMessage } from '../loop/send-loop-message';
+import { ProcessMessageOptions } from './types';
+import { mainResponse } from './main-response';
 
-export interface ProcessMessageOptions {
-  currentMessage: Message;
-  currentParts: Part[];
-  conversation: Conversation;
-  conversationHistory: { message: Message; parts: Part[] }[];
-  participants: User[];
-  logger?: FastifyBaseLogger;
-}
 
 export const processMessage = async (options: ProcessMessageOptions): Promise<void> => {
   const { currentMessage, currentParts, conversation, conversationHistory, participants, logger } = options;
@@ -27,13 +21,6 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
     isGroup: conversation?.isGroup || false
   }, 'Processing message with conversation history');
 
-  const system = `
-  You are a helpful assistant that can answer questions and help with tasks.
-  You are currently in a conversation with the user.
-  ${conversation.isGroup ? `You are in a group conversation. Each message from users will be prefixed with their user ID (e.g., "user-id-123: Hello") so you can identify who said what. Return back your response with NOTHING ELSE (no prefixing, no suffixing, no nothing).` : `You are in a 1-on-1 conversation with the user.`}
-  ## Participants
-  ${participants.map(participant => `- ${participant.id}: ${participant.phoneNumber}`).join('\n')}
-  `;
 
   // Convert all messages to UI message format
   const uiMessages = conversationHistory.map(({ message, parts }) =>
@@ -44,12 +31,7 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
   const modelMessages = convertToModelMessages(uiMessages);
 
   try {
-    // Generate response using Vercel AI SDK
-    const { text, usage } = await generateText({
-      model: openai('gpt-4o-mini'),
-      messages: modelMessages,
-      system,
-    });
+    const { text, usage } = await mainResponse(modelMessages, options);
 
     logger?.info({
       messageId: currentMessage.id,
