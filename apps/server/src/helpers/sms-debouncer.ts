@@ -7,18 +7,18 @@ interface SmsCacheEntry<T> {
 }
 
 // Message-related keys
-const smsDebouncerKey = (fromNumber: string, toNumber: string) =>
-  `sms-debouncer:${fromNumber}:${toNumber}`;
+const smsDebouncerKey = (conversationId: string) =>
+  `sms-debouncer:${conversationId}`;
 
 export class SmsDebouncer<T> {
   private readonly cacheKey: string;
 
   constructor(
-    private readonly fromNumber: string,
+    private readonly conversationId: string,
     private readonly toNumber: string,
     private readonly debounceWindowMs: number = 10000,
   ) {
-    this.cacheKey = smsDebouncerKey(fromNumber, toNumber);
+    this.cacheKey = smsDebouncerKey(conversationId);
   }
 
   async addMessage(message: T): Promise<{
@@ -27,7 +27,7 @@ export class SmsDebouncer<T> {
   }> {
     console.info("Adding SMS to debouncer", {
       messageId: (message as any).id,
-      fromNumber: this.fromNumber,
+      conversationId: this.conversationId,
     });
 
     const existingEntry = await kv.get<SmsCacheEntry<T>>(this.cacheKey);

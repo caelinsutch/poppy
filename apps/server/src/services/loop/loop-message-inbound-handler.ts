@@ -1,4 +1,4 @@
-import type { LoopMessageWebhookPayload } from '@poppy/schemas';
+import type { LoopMessageInboundPayload, LoopMessageWebhookPayload } from '@poppy/schemas';
 import type { FastifyBaseLogger } from 'fastify';
 import type { UIMessage, TextPart } from 'ai';
 import { db, messages, parts, conversations, conversationParticipants, users, type Message, type Part, type NewPart } from '@poppy/db';
@@ -10,7 +10,7 @@ import { getConversationHistory } from '../../helpers/db/get-conversation-histor
 import { storeLoopMessages } from './store-loop-messages';
 
 export interface MessageInboundHandlerOptions {
-  payload: LoopMessageWebhookPayload;
+  payload: LoopMessageInboundPayload;
   rawPayload: unknown;
   logger?: FastifyBaseLogger;
 }
@@ -34,10 +34,9 @@ export const handleMessageInbound = async (options: MessageInboundHandlerOptions
 
   // Create debouncer keyed by thread or sender_name and recipient
   // For inbound messages, we use thread_id if available, otherwise sender_name or a default
-  const senderKey = payload.thread_id || payload.sender_name || 'unknown';
+  const senderKey = payload.sender_name + payload.recipient
   const debouncer = new SmsDebouncer<LoopMessageWebhookPayload>(
     senderKey,
-    payload.recipient,
     debounceTime
   );
 

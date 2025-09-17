@@ -20,7 +20,7 @@ const individualMessageSchema = z.object({
 
 // Group message (has group_id, no recipient)
 const groupMessageSchema = z.object({
-  group_id: z.string().min(1, 'Group ID is required'),
+  group: z.string().min(1, 'Group ID is required'),
   ...baseMessageFields,
 });
 
@@ -68,6 +68,11 @@ const messageInboundPayloadSchema = baseWebhookPayloadSchema.extend({
   speech: z.object({
     text: z.string(),
     confidence: z.number(),
+  }).optional(),
+  group: z.object({
+    name: z.string(),
+    group_id: z.string(),
+    participants: z.array(z.string()),
   }).optional(),
 });
 
@@ -123,3 +128,4 @@ export type LoopMessageSendRequest = z.infer<typeof loopMessageSendRequestSchema
 export type LoopMessageSendResponse = z.infer<typeof loopMessageSendResponseSchema>;
 export type LoopMessageError = z.infer<typeof loopMessageErrorSchema>;
 export type LoopMessageWebhookPayload = z.infer<typeof loopMessageWebhookPayloadSchema>;
+export type LoopMessageInboundPayload = z.infer<typeof messageInboundPayloadSchema>;

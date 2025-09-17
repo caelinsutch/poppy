@@ -41,7 +41,7 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   if (conversation.loopMessageGroupId) {
     // Group message - use group_id
     sendRequest = {
-      group_id: conversation.loopMessageGroupId,
+      group: conversation.loopMessageGroupId,
       text,
       sender_name: conversation.sender,
     };
