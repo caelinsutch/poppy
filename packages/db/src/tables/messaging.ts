@@ -1,11 +1,11 @@
 import { boolean, index, integer, jsonb, pgTable, primaryKey, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { convertToModelMessages, generateId, ToolUIPart, UIMessagePart } from "ai";
-import { users, userChannels } from './users';
+import { users } from './users';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  channelId: uuid("channel_id").references(() => userChannels.id).notNull(),
+  channelType: varchar("channel_type").notNull(), // e.g., "loop", "rcs", etc
   isGroup: boolean("is_group").notNull().default(false), // Explicitly mark group conversations
   loopMessageGroupId: varchar("loop_message_group_id"), // Loop Message group ID for group conversations
   sender: varchar("sender").notNull(), // The phone number we send from (our bot)
@@ -28,7 +28,6 @@ export const messages = pgTable("messages", {
     .primaryKey()
     .$defaultFn(() => generateId()),
   conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
-  channelId: uuid("channel_id").references(() => userChannels.id, { onDelete: "cascade" }).notNull(),
   userId: uuid("user_id").references(() => users.id), // Optional if not group message
   isOutbound: boolean("is_outbound").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),

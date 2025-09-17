@@ -1,5 +1,4 @@
 import { pgTable, text, timestamp, uuid, jsonb, integer } from 'drizzle-orm/pg-core';
-import { channelTypeEnum } from './enums';
 import { LearnedPreferences, InferredPreferences } from '@poppy/schemas';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
@@ -10,15 +9,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   timezone: text("timezone").notNull().default("America/New_York"),
-});
-
-export const userChannels = pgTable("user_channels", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  channelType: channelTypeEnum("channel_type").notNull(),
-  channelIdentifier: text("channel_identifier").notNull(), // phone number, email, etc.
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const userPreferences = pgTable('user_preferences', {
@@ -42,7 +32,5 @@ export const userPreferences = pgTable('user_preferences', {
 // Type exports
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
-export type UserChannel = InferSelectModel<typeof userChannels>;
-export type NewUserChannel = InferInsertModel<typeof userChannels>;
 export type UserPreference = InferSelectModel<typeof userPreferences>;
 export type NewUserPreference = InferInsertModel<typeof userPreferences>;
