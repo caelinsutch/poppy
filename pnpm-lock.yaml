@@ -42,9 +42,9 @@ importers:
 
   apps/server:
     dependencies:
-      '@ai-sdk/openai':
-        specifier: ^2.0.27
-        version: 2.0.27(zod@4.1.5)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^1.2.0
+        version: 1.2.0(ai@5.0.39(zod@4.1.5))(zod@4.1.5)
       '@poppy/clients':
         specifier: workspace:*
         version: link:../../packages/clients
@@ -195,12 +195,6 @@ packages:
 
   '@ai-sdk/gateway@1.0.20':
     resolution: {integrity: sha512-2K0kGnHyLfT1v2+3xXbLqohfWBJ/vmIh1FTWnrvZfvuUuBdOi2DMgnSQzkLvFVLyM8mhOcx+ZwU6IOOsuyOv/w==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4
-
-  '@ai-sdk/openai@2.0.27':
-    resolution: {integrity: sha512-5fUFBlE9qGFgezVIVkzQk87qZYkxsn5PsedtCFPoGxHK6c2QVYHuD1UcrVIKt0elr043Vx17Xo/gS5oJAR5YEQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4
@@ -588,6 +582,13 @@ packages:
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
+
+  '@openrouter/ai-sdk-provider@1.2.0':
+    resolution: {integrity: sha512-stuIwq7Yb7DNmk3GuCtz+oS3nZOY4TXEV3V5KsknDGQN7Fpu3KRMQVWRc1J073xKdf0FC9EHOctSyzsACmp5Ag==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^5.0.0
+      zod: ^3.24.1 || ^v4
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -1128,12 +1129,6 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.8(zod@4.1.5)
       zod: 4.1.5
 
-  '@ai-sdk/openai@2.0.27(zod@4.1.5)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.8(zod@4.1.5)
-      zod: 4.1.5
-
   '@ai-sdk/provider-utils@3.0.8(zod@4.1.5)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -1362,6 +1357,11 @@ snapshots:
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.2
+
+  '@openrouter/ai-sdk-provider@1.2.0(ai@5.0.39(zod@4.1.5))(zod@4.1.5)':
+    dependencies:
+      ai: 5.0.39(zod@4.1.5)
+      zod: 4.1.5
 
   '@opentelemetry/api@1.9.0': {}
 

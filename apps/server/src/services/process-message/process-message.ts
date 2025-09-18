@@ -5,6 +5,8 @@ import { sendLoopMessage } from '../loop/send-loop-message';
 import { ProcessMessageOptions } from './types';
 import { mainResponse } from './main-response';
 import { checkShouldRespond } from './check-should-respond';
+import { db, messages } from '@poppy/db';
+import { desc, eq } from 'drizzle-orm';
 
 
 export const processMessage = async (options: ProcessMessageOptions): Promise<void> => {
@@ -57,6 +59,20 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
       response: text,
       usage
     }, 'Generated AI response');
+
+    // Don't send if there's newer messages in the conversation
+    const recentMessage = await db.query.messages.findFirst({
+      where: eq(messages.conversationId, currentMessage.conversationId),
+      orderBy: desc(messages.createdAt),
+    });
+
+    if (recentMessage && recentMessage.createdAt > currentMessage.createdAt) {
+      logger?.info({
+        messageId: currentMessage.id,
+        recentMessageId: recentMessage.id,
+      }, 'Skipping response because there are newer messages in the conversation');
+      return;
+    }
 
     // Send the message via Loop Message and save to database
     const sendResult = await sendLoopMessage({
