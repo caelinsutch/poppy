@@ -15,6 +15,8 @@ export interface SendLoopMessageOptions {
 export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   const { text, conversationId, logger } = options;
 
+  const byLine = text.split('\n').filter(line => line.trim());
+
   // Fetch conversation with participants in a single query
   const result = await db
     .select({
@@ -60,27 +62,39 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     };
   }
 
-  logger?.info({
-    sendRequest,
-  }, 'Sending message via Loop Message');
+  // Send each line as a separate message
+  const sentMessages = [];
+  for (const line of byLine) {
+    const lineRequest = {
+      ...sendRequest,
+      text: line,
+    };
 
-  // Send the message via Loop Message
-  const sendResponse = await loopClient.sendMessage(sendRequest);
+    logger?.info({
+      sendRequest: lineRequest,
+    }, 'Sending message line via Loop Message');
 
-  if (!sendResponse.success) {
-    throw new Error(`Failed to send message: ${sendResponse.error}`);
+    const sendResponse = await loopClient.sendMessage(lineRequest);
+
+    if (!sendResponse.success) {
+      throw new Error(`Failed to send message: ${sendResponse.error}`);
+    }
+
+    sentMessages.push({
+      text: line,
+      loopMessageId: sendResponse.message_id,
+      response: sendResponse,
+    });
   }
 
-  // Create the assistant message for database storage
+  // Create the assistant message for database storage with parts from byLine
   const assistantMessage: UIMessage = {
     id: generateId(),
     role: 'assistant',
-    parts: [
-      {
-        type: 'text',
-        text: text,
-      } as TextPart,
-    ],
+    parts: byLine.map(line => ({
+      type: 'text',
+      text: line,
+    } as TextPart)),
   };
 
   // Prepare message and parts data for database
@@ -91,8 +105,8 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     isOutbound: true, // Assistant messages are outbound
     rawPayload: {
       role: 'assistant',
-      loopMessageId: sendResponse.message_id,
-      ...sendResponse
+      loopMessageIds: sentMessages.map(m => m.loopMessageId),
+      responses: sentMessages.map(m => m.response),
     },
   };
 
@@ -110,12 +124,12 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   logger?.info({
     assistantMessageId: assistantMessage.id,
     conversationId,
-    loopMessageId: sendResponse.message_id,
-  }, 'Sent and saved assistant message');
+    loopMessageIds: sentMessages.map(m => m.loopMessageId),
+  }, 'Sent and saved assistant message with multiple parts');
 
   return {
     success: true,
-    loopMessageId: sendResponse.message_id,
+    loopMessageIds: sentMessages.map(m => m.loopMessageId),
     conversationId,
     message: insertedMessage,
     parts: insertedParts,

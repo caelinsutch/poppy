@@ -1,12 +1,10 @@
-import type { Message, Part, Conversation, User } from '@poppy/db';
-import type { FastifyBaseLogger } from 'fastify';
+
 import { convertToModelMessages } from 'ai';
-import { generateText } from 'ai';
 import { dbMessageToUIMessage } from '@poppy/lib';
-import { openai } from '../../clients/openai';
 import { sendLoopMessage } from '../loop/send-loop-message';
 import { ProcessMessageOptions } from './types';
 import { mainResponse } from './main-response';
+import { checkShouldRespond } from './check-should-respond';
 
 
 export const processMessage = async (options: ProcessMessageOptions): Promise<void> => {
@@ -27,11 +25,32 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
     dbMessageToUIMessage(message, parts, conversation.isGroup)
   );
 
+  logger?.info('uiMessages generated');
+
   // Convert UI messages to model messages for the AI SDK
   const modelMessages = convertToModelMessages(uiMessages);
 
+  logger?.info('modelMessages generated');
+
   try {
+    const shouldRespond = await checkShouldRespond(modelMessages, options);
+
+    if (!shouldRespond) {
+      logger?.info({
+        messageId: currentMessage.id,
+        shouldRespond
+      }, 'Skipping response');
+      return;
+    }
+
+    logger?.info({
+      messageId: currentMessage.id,
+      shouldRespond
+    }, 'Should respond to message');
+
     const { text, usage } = await mainResponse(modelMessages, options);
+
+    
 
     logger?.info({
       messageId: currentMessage.id,
@@ -48,7 +67,7 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
 
     logger?.info({
       assistantMessageId: sendResult.message.id,
-      loopMessageId: sendResult.loopMessageId,
+      loopMessageId: sendResult.loopMessageIds,
       conversationId: sendResult.conversationId,
     }, 'Successfully processed and sent message');
 

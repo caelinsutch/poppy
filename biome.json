@@ -16,7 +16,6 @@
 		],
 		"ignore": [
 			"**/.cache",
-			"python/**",
 			"**/pnpm-lock.yaml",
 			".turbo/**",
 			"**/node_modules/**",
@@ -29,7 +28,6 @@
 	},
 	"formatter": {
 		"enabled": true,
-		"useEditorconfig": true,
 		"formatWithErrors": false,
 		"indentStyle": "space",
 		"indentWidth": 2,
