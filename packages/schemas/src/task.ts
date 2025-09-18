@@ -55,6 +55,7 @@ export const TaskMetadataSchema = z.object({
 
 // Final options schema
 export const FinalOptionsSchema = z.object({
+  type: z.literal('find_reservations'),
   options: z.array(ReservationOptionSchema),
   searchSummary: z.object({
     totalSearched: z.number(),

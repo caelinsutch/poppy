@@ -6,6 +6,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   phoneNumber: text("phone_number").notNull().unique(),
   email: text("email"),
+  name: text("name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   timezone: text("timezone").notNull().default("America/New_York"),
@@ -20,10 +21,6 @@ export const userPreferences = pgTable('user_preferences', {
 
   // Inferred preferences (from behavior)
   inferredPreferences: jsonb('inferred_preferences').$type<InferredPreferences>(),
-
-  // Stats
-  totalReservations: integer('total_reservations').notNull().default(0),
-  lastReservationAt: timestamp('last_reservation_at'),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
