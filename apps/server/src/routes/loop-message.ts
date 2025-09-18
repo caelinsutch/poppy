@@ -109,9 +109,13 @@ export async function loopMessageRoutes(server: FastifyInstance) {
           }, 'Group created');
           break;
       }
+
+      server.log.info({
+        payload,
+      }, 'Processed webhook payload');
       
       return reply.code(200).send({ success: true,
-        typing: 5,
+        typing: 8,
         read: true
        });
       
