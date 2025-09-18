@@ -1,7 +1,7 @@
 import { Conversation } from "@poppy/db";
 import { generateObject, ModelMessage } from "ai";
 import { ProcessMessageOptions } from "./types";
-import { openai } from "@ai-sdk/openai";
+import { gemini25, openrouter } from "@/clients/ai/openrouter";
 import z from "zod";
 import { basePrompt } from "@/prompts/base";
 
@@ -12,7 +12,7 @@ export const checkShouldRespond = async (modelMessages: ModelMessage[], options:
     return true;
 
   const { object } = await generateObject({
-    model: openai('gpt-5-nano'),
+    model: gemini25,
     schema: z.object({
       shouldRespond: z.boolean(),
     }),

@@ -14,6 +14,7 @@ export const env = createEnv({
     KV_REST_API_URL: z.string().min(1),
     KV_REST_API_TOKEN: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
+    OPENROUTER_API_KEY: z.string().min(1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

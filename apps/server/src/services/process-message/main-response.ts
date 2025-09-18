@@ -1,7 +1,7 @@
-import { openai } from "@/clients/openai";
 import { ProcessMessageOptions } from "./types";
 import { generateText, ModelMessage } from "ai";
 import { basePrompt } from "@/prompts/base";
+import { gemini25 } from "@/clients/ai/openrouter";
 
 export const mainResponse = async (modelMessages: ModelMessage[], options: ProcessMessageOptions) => {
   const { conversation, participants } = options;
@@ -17,13 +17,9 @@ ${participants.map(participant => `- ${participant.id}: ${participant.phoneNumbe
   `;
 
   const response = await generateText({
-    model: openai('gpt-4.1'),
+    model: gemini25,
     messages: modelMessages,
     system,
-    tools: {
-      webSearch: openai.tools.webSearch({
-      }),
-    },
   });
 
   return response

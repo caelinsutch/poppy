@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.27",
+    "@openrouter/ai-sdk-provider": "^1.2.0",
     "@poppy/clients": "workspace:*",
     "@poppy/db": "workspace:*",
     "@poppy/lib": "workspace:*",
