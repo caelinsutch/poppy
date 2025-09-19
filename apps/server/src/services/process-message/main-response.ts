@@ -1,6 +1,7 @@
 import {
   type ModelMessage,
   readUIMessageStream,
+  stepCountIs,
   streamText,
   type UIDataTypes,
   type UIMessage,
@@ -25,7 +26,9 @@ ${conversation.isGroup ? `You are in a group conversation. Each message from use
 
 ## Participants
 ${participants.map((participant) => `- ${participant.id}: ${participant.phoneNumber}`).join("\n")}
-  `;
+
+While you may call tools , ALWAYS return you response in a text
+`;
 
   const stream = await streamText<ToolTypes>({
     model: gemini25,
@@ -35,6 +38,7 @@ ${participants.map((participant) => `- ${participant.id}: ${participant.phoneNum
       webSearch,
     },
     toolChoice: "auto",
+    stopWhen: stepCountIs(2)
   });
 
   const messages: UIMessage<unknown, UIDataTypes, UITools>[] =
