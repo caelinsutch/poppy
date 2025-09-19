@@ -20,7 +20,9 @@ Poppy is a modular personal assistant that connects various communication channe
 
 ### Agents
 
-#### Available
+Agents are configured via a "task" based system that allows them to run in the background, on a trigger/hook, or as cron jobs.
+
+#### In Progress
 - **Reservation Finding** - Search for restaurant availability
 
 #### Planned
