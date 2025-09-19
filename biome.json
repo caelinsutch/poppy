@@ -1,84 +1,38 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
-	"files": {
-		"ignoreUnknown": false,
-		"include": [
-			"**/**/*.ts",
-			"**/**/*.tsx",
-			"**/**/*.js",
-			"**/**/*.jsx",
-			"**/**/*.json",
-			"**/**/*.jsonc",
-			"**/**/*.md",
-			"**/**/*.mdx",
-			"**/**/*.css",
-			"**/**/*.scss"
-		],
-		"ignore": [
-			"**/.cache",
-			"**/pnpm-lock.yaml",
-			".turbo/**",
-			"**/node_modules/**",
-			"**/.expo/**",
-			"**/.next/**",
-			"**/*dist/**",
-			"**/*public/**",
-			"**/animations/**/*.json"
-		]
-	},
-	"formatter": {
-		"enabled": true,
-		"formatWithErrors": false,
-		"indentStyle": "space",
-		"indentWidth": 2,
-		"lineEnding": "lf",
-		"lineWidth": 80,
-		"attributePosition": "auto",
-		"bracketSpacing": true
-	},
-	"organizeImports": { "enabled": true },
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"style": {
-				"noNonNullAssertion": "off",
-				"noParameterAssign": "off"
-			},
-			"correctness": {
-				"useExhaustiveDependencies": "off",
-				"noUnusedImports": "error",
-				"noUnusedVariables": "error"
-			},
-			"performance": {
-				"noAccumulatingSpread": "off"
-			},
-			"complexity": {
-				"noForEach": "off"
-			},
-			"suspicious": {
-				"noExplicitAny": "off",
-				"noArrayIndexKey": "off"
-			},
-			"a11y": {
-				"noSvgWithoutTitle": "off",
-				"useButtonType": "off",
-				"useKeyWithClickEvents": "off",
-				"all": false
-			}
-		}
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double",
-			"jsxQuoteStyle": "double",
-			"quoteProperties": "asNeeded",
-			"trailingCommas": "all",
-			"semicolons": "always",
-			"arrowParentheses": "always",
-			"bracketSameLine": false,
-			"attributePosition": "auto",
-			"bracketSpacing": true
-		}
-	}
+  "$schema": "https://biomejs.dev/schemas/2.2.3/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noAsyncPromiseExecutor": "off",
+        "useIterableCallbackReturn": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
 }

@@ -1,7 +1,17 @@
-import { boolean, index, integer, jsonb, pgTable, primaryKey, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { convertToModelMessages, generateId, ToolUIPart, UIMessagePart } from "ai";
-import { users } from './users';
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { generateId, type UIMessagePart } from "ai";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  timestamp,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -14,50 +24,69 @@ export const conversations = pgTable("conversations", {
 });
 
 // Junction table for many-to-many relationship between users and conversations
-export const conversationParticipants = pgTable("conversation_participants", {
-  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.conversationId, table.userId] }),
-  userIdx: index("participants_user_idx").on(table.userId),
-  conversationIdx: index("participants_conversation_idx").on(table.conversationId),
-}));
+export const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.conversationId, table.userId] }),
+    userIdx: index("participants_user_idx").on(table.userId),
+    conversationIdx: index("participants_conversation_idx").on(
+      table.conversationId,
+    ),
+  }),
+);
 
-export const messages = pgTable("messages", {
-  id: varchar()
-    .primaryKey()
-    .$defaultFn(() => generateId()),
-  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
-  userId: uuid("user_id").references(() => users.id), // Optional if not group message
-  isOutbound: boolean("is_outbound").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  rawPayload: jsonb("raw_payload").notNull(),
-}, (table) => ({
-  userIdx: index("messages_user_idx").on(table.userId),
-  conversationIdx: index("messages_conversation_idx").on(table.conversationId),
-}));
-
-export const parts = pgTable(
-  "parts",
+export const messages = pgTable(
+  "messages",
   {
     id: varchar()
       .primaryKey()
       .$defaultFn(() => generateId()),
-    messageId: varchar()
-      .references(() => messages.id, { onDelete: "cascade" })
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
       .notNull(),
-    type: varchar().$type<UIMessagePart<any, any>["type"]>().notNull(),
-    content: jsonb().notNull(),
-    createdAt: timestamp().defaultNow().notNull(),
-    order: integer().notNull().default(0),
-  }
+    userId: uuid("user_id").references(() => users.id), // Optional if not group message
+    isOutbound: boolean("is_outbound").notNull().default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    rawPayload: jsonb("raw_payload").notNull(),
+  },
+  (table) => ({
+    userIdx: index("messages_user_idx").on(table.userId),
+    conversationIdx: index("messages_conversation_idx").on(
+      table.conversationId,
+    ),
+  }),
 );
+
+export const parts = pgTable("parts", {
+  id: varchar()
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  messageId: varchar()
+    .references(() => messages.id, { onDelete: "cascade" })
+    .notNull(),
+  type: varchar().$type<UIMessagePart<any, any>["type"]>().notNull(),
+  content: jsonb().notNull(),
+  createdAt: timestamp().defaultNow().notNull(),
+  order: integer().notNull().default(0),
+});
 
 // Type exports
 export type Conversation = InferSelectModel<typeof conversations>;
 export type NewConversation = InferInsertModel<typeof conversations>;
-export type ConversationParticipant = InferSelectModel<typeof conversationParticipants>;
-export type NewConversationParticipant = InferInsertModel<typeof conversationParticipants>;
+export type ConversationParticipant = InferSelectModel<
+  typeof conversationParticipants
+>;
+export type NewConversationParticipant = InferInsertModel<
+  typeof conversationParticipants
+>;
 export type Message = InferSelectModel<typeof messages>;
 export type NewMessage = InferInsertModel<typeof messages>;
 export type Part = InferSelectModel<typeof parts>;

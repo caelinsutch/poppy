@@ -1,5 +1,5 @@
-import { Message, Part, NewMessage, NewPart } from '@poppy/db';
-import type { UIMessage, UIMessagePart } from 'ai';
+import type { Message, NewMessage, NewPart, Part } from "@poppy/db";
+import type { UIMessage, UIMessagePart } from "ai";
 
 /**
  * Convert a database message with its parts to a UIMessage
@@ -7,7 +7,7 @@ import type { UIMessage, UIMessagePart } from 'ai';
 export const dbMessageToUIMessage = (
   message: Message,
   messageParts: Part[],
-  isGroup?: boolean
+  isGroup?: boolean,
 ): UIMessage => {
   // Sort parts by order
   const sortedParts = messageParts.sort((a, b) => a.order - b.order);
@@ -21,7 +21,12 @@ export const dbMessageToUIMessage = (
     const { rawPayload, ...partContent } = content;
 
     // For group messages, prepend user ID to the first text part
-    if (isGroup && message.userId && index === 0 && partContent.type === 'text') {
+    if (
+      isGroup &&
+      message.userId &&
+      index === 0 &&
+      partContent.type === "text"
+    ) {
       return {
         ...partContent,
         text: `${message.userId}: ${partContent.text}`,
@@ -33,7 +38,7 @@ export const dbMessageToUIMessage = (
 
   // Extract role from the raw payload or default to 'user'
   const rawPayload = message.rawPayload as any;
-  const role = rawPayload?.role || 'user';
+  const role = rawPayload?.role || "user";
 
   return {
     id: message.id,
@@ -49,7 +54,7 @@ export const uiMessageToDBFormat = (
   uiMessage: UIMessage,
   conversationId: string,
   rawPayload?: unknown,
-  isOutbound: boolean = false
+  isOutbound: boolean = false,
 ): { message: NewMessage; parts: NewPart[] } => {
   const messageData: NewMessage = {
     id: uiMessage.id,
@@ -83,5 +88,8 @@ export const dbMessagesToUIMessages = (
     message: Message;
     parts: Part[];
   }>,
-  isGroup?: boolean
-): UIMessage[] => messagesWithParts.map(({ message, parts }) => dbMessageToUIMessage(message, parts, isGroup));  
+  isGroup?: boolean,
+): UIMessage[] =>
+  messagesWithParts.map(({ message, parts }) =>
+    dbMessageToUIMessage(message, parts, isGroup),
+  );

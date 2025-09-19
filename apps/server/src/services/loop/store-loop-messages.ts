@@ -1,42 +1,56 @@
-import { Message, Part, db, users, conversations, conversationParticipants, NewPart, messages, parts, NewConversation } from "@poppy/db";
-import { LoopMessageInboundPayload, LoopMessageWebhookPayload } from "@poppy/schemas";
-import { TextPart, UIMessage, generateId } from "ai";
-import { inArray, eq, sql, and } from "drizzle-orm";
-import { FastifyBaseLogger } from "fastify";
+import {
+  conversationParticipants,
+  conversations,
+  db,
+  type Message,
+  messages,
+  type NewConversation,
+  type NewPart,
+  type Part,
+  parts,
+  users,
+} from "@poppy/db";
+import type { LoopMessageInboundPayload } from "@poppy/schemas";
+import { generateId, type TextPart, type UIMessage } from "ai";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import type { FastifyBaseLogger } from "fastify";
 
 export const storeLoopMessages = async (
   payloads: LoopMessageInboundPayload[],
   logger?: FastifyBaseLogger,
 ): Promise<{ message: Message; parts: Part[] } | null> => {
   if (payloads.length === 0) {
-    logger?.warn('No messages to store');
+    logger?.warn("No messages to store");
     return null;
   }
 
   // Use the first payload for channel/conversation lookup
   const primaryPayload = payloads[0];
-  console.log('primaryPayload', primaryPayload);
+  console.log("primaryPayload", primaryPayload);
 
   // Step 1: Extract the UI message with associated parts
-  const messageParts: TextPart[] = payloads.map(payload => ({
-    type: 'text' as const,
+  const messageParts: TextPart[] = payloads.map((payload) => ({
+    type: "text" as const,
     text: payload.text,
   }));
 
   const uiMessage: UIMessage = {
     id: generateId(),
-    role: 'user',
+    role: "user",
     parts: messageParts,
   };
 
-  logger?.info({
-    messageData: {
-      id: uiMessage.id,
-      role: uiMessage.role,
-      parts: uiMessage.parts,
-      messageCount: payloads.length,
-    }
-  }, 'Storing debounced inbound messages');
+  logger?.info(
+    {
+      messageData: {
+        id: uiMessage.id,
+        role: uiMessage.role,
+        parts: uiMessage.parts,
+        messageCount: payloads.length,
+      },
+    },
+    "Storing debounced inbound messages",
+  );
 
   try {
     // Step 2: Create users for each person in conversation
@@ -49,7 +63,9 @@ export const storeLoopMessages = async (
       // Extract group ID and participants from group messages
       loopMessageGroupId = primaryPayload.group.group_id;
       if (primaryPayload.group.participants) {
-        primaryPayload.group.participants.forEach((p: string) => participants.add(p));
+        primaryPayload.group.participants.forEach((p: string) =>
+          participants.add(p),
+        );
       }
     } else {
       // For regular 1-on-1 messages, add recipient
@@ -69,20 +85,27 @@ export const storeLoopMessages = async (
       .where(inArray(users.phoneNumber, participantArray));
 
     const userMap = new Map<string, string>();
-    existingUsers.forEach(user => userMap.set(user.phoneNumber, user.id));
+    existingUsers.forEach((user) => {
+      userMap.set(user.phoneNumber, user.id);
+    });
 
     // Find missing users
-    const missingUsers = participantArray.filter(p => !userMap.has(p));
+    const missingUsers = participantArray.filter((p) => !userMap.has(p));
 
     // Batch create missing users
     if (missingUsers.length > 0) {
       const newUsers = await db
         .insert(users)
-        .values(missingUsers.map(phoneNumber => ({ phoneNumber })))
+        .values(missingUsers.map((phoneNumber) => ({ phoneNumber })))
         .returning();
 
-      newUsers.forEach(user => userMap.set(user.phoneNumber, user.id));
-      logger?.info({ count: newUsers.length, phoneNumbers: missingUsers }, 'Created new users');
+      newUsers.forEach((user) => {
+        userMap.set(user.phoneNumber, user.id);
+      });
+      logger?.info(
+        { count: newUsers.length, phoneNumbers: missingUsers },
+        "Created new users",
+      );
     }
 
     // No need for channel lookup anymore - conversations are directly linked to users via participants
@@ -114,13 +137,20 @@ export const storeLoopMessages = async (
           participantCount: sql<number>`count(distinct ${conversationParticipants.userId})`,
         })
         .from(conversations)
-        .innerJoin(conversationParticipants, eq(conversationParticipants.conversationId, conversations.id))
-        .where(and(
-          inArray(conversationParticipants.userId, userIds),
-          eq(conversations.isGroup, false)
-        ))
+        .innerJoin(
+          conversationParticipants,
+          eq(conversationParticipants.conversationId, conversations.id),
+        )
+        .where(
+          and(
+            inArray(conversationParticipants.userId, userIds),
+            eq(conversations.isGroup, false),
+          ),
+        )
         .groupBy(conversations.id)
-        .having(sql`count(distinct ${conversationParticipants.userId}) = ${userIds.length}`);
+        .having(
+          sql`count(distinct ${conversationParticipants.userId}) = ${userIds.length}`,
+        );
 
       if (conversationsWithParticipants.length > 0) {
         existingConversation = [conversationsWithParticipants[0].conversation];
@@ -136,12 +166,15 @@ export const storeLoopMessages = async (
           isGroup: isGroupMessage,
           sender: primaryPayload.sender_name!,
           loopMessageGroupId,
-          channelType: 'loop',
+          channelType: "loop",
         };
 
-        logger?.info({
-          conversationData,
-        }, 'Creating new conversation');
+        logger?.info(
+          {
+            conversationData,
+          },
+          "Creating new conversation",
+        );
 
         // Only add loopMessageGroupId if it's defined (for group conversations)
         if (loopMessageGroupId) {
@@ -154,25 +187,28 @@ export const storeLoopMessages = async (
           .returning();
 
         // Batch insert all participants
-        const participantValues = Array.from(userMap.values()).map(userId => ({
-          conversationId: newConversation.id,
-          userId,
-        }));
+        const participantValues = Array.from(userMap.values()).map(
+          (userId) => ({
+            conversationId: newConversation.id,
+            userId,
+          }),
+        );
 
-        await tx
-          .insert(conversationParticipants)
-          .values(participantValues);
+        await tx.insert(conversationParticipants).values(participantValues);
 
         return newConversation.id;
       });
 
       conversationId = result;
 
-      logger?.info({
-        conversationId,
-        isGroup: isGroupMessage,
-        participantCount: userMap.size
-      }, 'Created new conversation with participants');
+      logger?.info(
+        {
+          conversationId,
+          isGroup: isGroupMessage,
+          participantCount: userMap.size,
+        },
+        "Created new conversation with participants",
+      );
     }
 
     // Step 4: Create the message attached to the right user
@@ -203,25 +239,30 @@ export const storeLoopMessages = async (
     }));
 
     // Insert message first, then parts (due to foreign key constraint)
-    const [insertedMessage] = await db.insert(messages).values(messageData).returning();
+    const [insertedMessage] = await db
+      .insert(messages)
+      .values(messageData)
+      .returning();
     const insertedParts = await db.insert(parts).values(partsData).returning();
 
-    logger?.info({
-      messageId: uiMessage.id,
-      conversationId,
-      senderUserId,
-      isOutbound: false,
-      isGroup: isGroupMessage,
-      participantCount: userMap.size,
-    }, 'Successfully stored inbound message');
+    logger?.info(
+      {
+        messageId: uiMessage.id,
+        conversationId,
+        senderUserId,
+        isOutbound: false,
+        isGroup: isGroupMessage,
+        participantCount: userMap.size,
+      },
+      "Successfully stored inbound message",
+    );
 
     return {
       message: insertedMessage,
-      parts: insertedParts
+      parts: insertedParts,
     };
-
   } catch (error) {
-    logger?.error({ error, payloads }, 'Failed to store messages in database');
+    logger?.error({ error, payloads }, "Failed to store messages in database");
     throw error;
   }
 };

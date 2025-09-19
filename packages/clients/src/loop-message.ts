@@ -1,5 +1,8 @@
-import wretch from 'wretch';
-import type { LoopMessageSendRequest, LoopMessageSendResponse } from '@poppy/schemas';
+import type {
+  LoopMessageSendRequest,
+  LoopMessageSendResponse,
+} from "@poppy/schemas";
+import wretch from "wretch";
 
 export interface LoopMessageClientConfig {
   authorizationKey: string;
@@ -8,32 +11,31 @@ export interface LoopMessageClientConfig {
 }
 
 function createWretchClient(config: LoopMessageClientConfig) {
-  const baseUrl = config.baseUrl || 'https://server.loopmessage.com';
-  
-  return wretch(baseUrl)
-    .headers({
-      'Authorization': config.authorizationKey,
-      'Loop-Secret-Key': config.secretKey,
-      'Content-Type': 'application/json'
-    });
+  const baseUrl = config.baseUrl || "https://server.loopmessage.com";
+
+  return wretch(baseUrl).headers({
+    Authorization: config.authorizationKey,
+    "Loop-Secret-Key": config.secretKey,
+    "Content-Type": "application/json",
+  });
 }
 
 async function handleError(error: any): Promise<LoopMessageSendResponse> {
-  console.log(error)
+  console.log(error);
   if (error.status) {
-    const errorData = error.message
-    
+    const errorData = error.message;
+
     if (error.status === 402) {
       return {
         success: false,
-        error: 'No available requests/credits'
+        error: "No available requests/credits",
       };
     }
-    
+
     return {
       success: false,
-      error: errorData.error || 'Failed to send message',
-      message: errorData.message
+      error: errorData.error || "Failed to send message",
+      message: errorData.message,
     };
   }
 
@@ -42,18 +44,18 @@ async function handleError(error: any): Promise<LoopMessageSendResponse> {
 
 async function sendMessage(
   client: ReturnType<typeof wretch>,
-  request: LoopMessageSendRequest
+  request: LoopMessageSendRequest,
 ): Promise<LoopMessageSendResponse> {
   try {
     const response = await client
-      .url('/api/v1/message/send/')
+      .url("/api/v1/message/send/")
       .post(request)
       .json<any>();
 
     return {
       success: true,
-      message: 'Message sent successfully',
-      message_id: response.message_id
+      message: "Message sent successfully",
+      message_id: response.message_id,
     };
   } catch (error: any) {
     return handleError(error);
@@ -62,8 +64,9 @@ async function sendMessage(
 
 export const createLoopMessageClient = (config: LoopMessageClientConfig) => {
   const wretchClient = createWretchClient(config);
-  
+
   return {
-    sendMessage: (request: LoopMessageSendRequest) => sendMessage(wretchClient, request)
+    sendMessage: (request: LoopMessageSendRequest) =>
+      sendMessage(wretchClient, request),
   };
-}
+};

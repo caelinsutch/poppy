@@ -8,7 +8,10 @@
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint"],
+      "suspicious": {
+        "useIterableCallbackReturn": "off"
+      }
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]

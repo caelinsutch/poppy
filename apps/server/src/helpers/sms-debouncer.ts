@@ -1,6 +1,5 @@
 import { kv } from "@vercel/kv";
 
-
 interface SmsCacheEntry<T> {
   messages: T[];
   lastProcessed: string;
@@ -61,7 +60,7 @@ export class SmsDebouncer<T> {
     return entry?.messages ?? [];
   }
 
-  async clear() : Promise<void> {
+  async clear(): Promise<void> {
     await kv.del(this.cacheKey);
   }
 

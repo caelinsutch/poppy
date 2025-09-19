@@ -1,7 +1,7 @@
-import { relations } from 'drizzle-orm';
-import { tasks, taskRuns, taskEvents } from '../tables/tasks';
-import { users } from '../tables/users';
-import { messages } from '../tables/messaging';
+import { relations } from "drizzle-orm";
+import { messages } from "../tables/messaging";
+import { taskEvents, taskRuns, tasks } from "../tables/tasks";
+import { users } from "../tables/users";
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   user: one(users, {
@@ -32,11 +32,11 @@ export const taskEventsRelations = relations(taskEvents, ({ one }) => ({
   triggerMessage: one(messages, {
     fields: [taskEvents.triggerMessageId],
     references: [messages.id],
-    relationName: 'triggerMessage',
+    relationName: "triggerMessage",
   }),
   responseMessage: one(messages, {
     fields: [taskEvents.responseMessageId],
     references: [messages.id],
-    relationName: 'responseMessage',
+    relationName: "responseMessage",
   }),
 }));

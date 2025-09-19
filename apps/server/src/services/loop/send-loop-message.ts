@@ -1,21 +1,31 @@
-import { loopClient } from '../../clients/loop-message';
-import { db, conversations, conversationParticipants, users, messages, parts, type NewPart } from '@poppy/db';
-import { eq } from 'drizzle-orm';
-import type { LoopMessageSendRequest } from '@poppy/schemas';
-import type { UIMessage, TextPart } from 'ai';
-import { generateId } from 'ai';
-import type { FastifyBaseLogger } from 'fastify';
+import {
+  conversationParticipants,
+  conversations,
+  db,
+  messages,
+  type NewMessage,
+  type NewPart,
+  parts,
+  users,
+} from "@poppy/db";
+import type { LoopMessageSendRequest } from "@poppy/schemas";
+import { generateId, type UIMessage } from "ai";
+import { eq } from "drizzle-orm";
+import type { FastifyBaseLogger } from "fastify";
+import type { UIToolTypes } from "@/tools";
+import { loopClient } from "../../clients/loop-message";
 
 export interface SendLoopMessageOptions {
   text: string;
   conversationId: string;
   logger?: FastifyBaseLogger;
+  aiMessages: UIMessage<unknown, any, UIToolTypes>[];
 }
 
 export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
-  const { text, conversationId, logger } = options;
+  const { text, conversationId, logger, aiMessages } = options;
 
-  const byLine = text.split('\n').filter(line => line.trim());
+  const byLine = text.split("\n").filter((line) => line.trim());
 
   // Fetch conversation with participants in a single query
   const result = await db
@@ -24,7 +34,10 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
       phoneNumber: users.phoneNumber,
     })
     .from(conversations)
-    .leftJoin(conversationParticipants, eq(conversationParticipants.conversationId, conversations.id))
+    .leftJoin(
+      conversationParticipants,
+      eq(conversationParticipants.conversationId, conversations.id),
+    )
     .leftJoin(users, eq(users.id, conversationParticipants.userId))
     .where(eq(conversations.id, conversationId));
 
@@ -34,7 +47,7 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
 
   const conversation = result[0].conversation;
   const participants = result
-    .map(r => r.phoneNumber)
+    .map((r) => r.phoneNumber)
     .filter((p): p is string => p !== null);
 
   // Build the request based on whether it's a group or individual conversation
@@ -49,10 +62,12 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     };
   } else {
     // Individual message - find the recipient (participant who is NOT the sender/bot)
-    const recipient = participants.find(p => p !== conversation.sender);
+    const recipient = participants.find((p) => p !== conversation.sender);
 
     if (!recipient) {
-      throw new Error(`Could not determine recipient for conversation: ${conversationId}`);
+      throw new Error(
+        `Could not determine recipient for conversation: ${conversationId}`,
+      );
     }
 
     sendRequest = {
@@ -70,9 +85,12 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
       text: line,
     };
 
-    logger?.info({
-      sendRequest: lineRequest,
-    }, 'Sending message line via Loop Message');
+    logger?.info(
+      {
+        sendRequest: lineRequest,
+      },
+      "Sending message line via Loop Message",
+    );
 
     const sendResponse = await loopClient.sendMessage(lineRequest);
 
@@ -87,51 +105,48 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     });
   }
 
-  // Create the assistant message for database storage with parts from byLine
-  const assistantMessage: UIMessage = {
-    id: generateId(),
-    role: 'assistant',
-    parts: byLine.map(line => ({
-      type: 'text',
-      text: line,
-    } as TextPart)),
-  };
+  const messageData: NewMessage[] = [];
+  const partsData: NewPart[] = [];
 
-  // Prepare message and parts data for database
-  const messageData = {
-    id: assistantMessage.id,
-    conversationId,
-    userId: null, // Assistant messages don't have a userId
-    isOutbound: true, // Assistant messages are outbound
-    rawPayload: {
-      role: 'assistant',
-      loopMessageIds: sentMessages.map(m => m.loopMessageId),
-      responses: sentMessages.map(m => m.response),
-    },
-  };
-
-  const partsData: NewPart[] = assistantMessage.parts.map((part, index) => ({
-    messageId: assistantMessage.id,
-    type: part.type,
-    content: part,
-    order: index,
-  }));
+  for (const message of aiMessages) {
+    const id = generateId();
+    messageData.push({
+      id,
+      conversationId,
+      userId: null,
+      isOutbound: true,
+      rawPayload: message,
+    });
+    for (const part of message.parts) {
+      partsData.push({
+        messageId: id,
+        type: part.type,
+        content: part,
+        order: 0,
+      });
+    }
+  }
 
   // Save to database
-  const [insertedMessage] = await db.insert(messages).values(messageData).returning();
+  const insertedMessages = await db
+    .insert(messages)
+    .values(messageData)
+    .returning();
   const insertedParts = await db.insert(parts).values(partsData).returning();
 
-  logger?.info({
-    assistantMessageId: assistantMessage.id,
-    conversationId,
-    loopMessageIds: sentMessages.map(m => m.loopMessageId),
-  }, 'Sent and saved assistant message with multiple parts');
+  logger?.info(
+    {
+      insertedMessageIds: insertedMessages.map((m) => m.id),
+      conversationId,
+      loopMessageIds: sentMessages.map((m) => m.loopMessageId),
+    },
+    "Sent and saved assistant message with multiple parts",
+  );
 
   return {
     success: true,
-    loopMessageIds: sentMessages.map(m => m.loopMessageId),
+    loopMessageIds: sentMessages.map((m) => m.loopMessageId),
     conversationId,
-    message: insertedMessage,
     parts: insertedParts,
   };
 };
