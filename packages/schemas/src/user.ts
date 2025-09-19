@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { PriceRange } from './enums';
+import { z } from "zod";
+import { PriceRange } from "./enums";
 
 // User preferences schema
 export const LearnedPreferencesSchema = z.object({

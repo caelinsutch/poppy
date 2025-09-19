@@ -1,10 +1,21 @@
-import type { FastifyBaseLogger } from 'fastify';
-import { db, messages, parts, conversations, conversationParticipants, users, type Message, type Part, type User, type Conversation } from '@poppy/db';
-import { eq } from 'drizzle-orm';
+import {
+  type Conversation,
+  conversationParticipants,
+  conversations,
+  db,
+  type Message,
+  messages,
+  type Part,
+  parts,
+  type User,
+  users,
+} from "@poppy/db";
+import { eq } from "drizzle-orm";
+import type { FastifyBaseLogger } from "fastify";
 
 export const getConversationHistory = async (
   conversationId: string,
-  logger?: FastifyBaseLogger
+  logger?: FastifyBaseLogger,
 ) => {
   // Fetch conversation with all related data in a single query
   const result = await db
@@ -17,7 +28,10 @@ export const getConversationHistory = async (
     .from(conversations)
     .leftJoin(messages, eq(messages.conversationId, conversations.id))
     .leftJoin(parts, eq(parts.messageId, messages.id))
-    .leftJoin(conversationParticipants, eq(conversationParticipants.conversationId, conversations.id))
+    .leftJoin(
+      conversationParticipants,
+      eq(conversationParticipants.conversationId, conversations.id),
+    )
     .leftJoin(users, eq(users.id, conversationParticipants.userId))
     .where(eq(conversations.id, conversationId))
     .orderBy(messages.createdAt);
@@ -44,9 +58,9 @@ export const getConversationHistory = async (
 
       // Add part if exists
       if (row.part) {
-        const messageParts = messageMap.get(row.message.id)!.parts;
+        const messageParts = messageMap.get(row.message.id)?.parts;
         // Avoid duplicate parts (due to multiple participants in the join)
-        if (!messageParts.some(p => p.id === row.part?.id)) {
+        if (!messageParts.some((p) => p.id === row.part?.id)) {
           messageParts.push(row.part);
         }
       }
@@ -61,12 +75,15 @@ export const getConversationHistory = async (
   const messagesWithParts = Array.from(messageMap.values());
   const participants = Array.from(participantMap.values());
 
-  logger?.info({
-    conversationId,
-    participantCount: participants.length,
-    messageCount: messagesWithParts.length,
-    totalParts: messagesWithParts.reduce((acc, m) => acc + m.parts.length, 0),
-  }, 'Fetched conversation with history, participants and parts');
+  logger?.info(
+    {
+      conversationId,
+      participantCount: participants.length,
+      messageCount: messagesWithParts.length,
+      totalParts: messagesWithParts.reduce((acc, m) => acc + m.parts.length, 0),
+    },
+    "Fetched conversation with history, participants and parts",
+  );
 
   return {
     conversation: conversation!,

@@ -1,7 +1,7 @@
-import { relations } from 'drizzle-orm';
-import { users, userPreferences } from '../tables/users';
-import { conversationParticipants, messages } from '../tables/messaging';
-import { tasks } from '../tables/tasks';
+import { relations } from "drizzle-orm";
+import { conversationParticipants, messages } from "../tables/messaging";
+import { tasks } from "../tables/tasks";
+import { userPreferences, users } from "../tables/users";
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   tasks: many(tasks),
@@ -10,9 +10,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   messages: many(messages),
 }));
 
-export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
-  user: one(users, {
-    fields: [userPreferences.userId],
-    references: [users.id],
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);

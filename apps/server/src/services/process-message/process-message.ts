@@ -1,76 +1,103 @@
+import { db, messages } from "@poppy/db";
+import { dbMessageToUIMessage } from "@poppy/lib";
+import { convertToModelMessages } from "ai";
+import { desc, eq } from "drizzle-orm";
+import { sendLoopMessage } from "../loop/send-loop-message";
+import { checkShouldRespond } from "./check-should-respond";
+import { mainResponse } from "./main-response";
+import type { ProcessMessageOptions } from "./types";
 
-import { convertToModelMessages } from 'ai';
-import { dbMessageToUIMessage } from '@poppy/lib';
-import { sendLoopMessage } from '../loop/send-loop-message';
-import { ProcessMessageOptions } from './types';
-import { mainResponse } from './main-response';
-import { checkShouldRespond } from './check-should-respond';
-import { db, messages } from '@poppy/db';
-import { desc, eq } from 'drizzle-orm';
+export const processMessage = async (
+  options: ProcessMessageOptions,
+): Promise<void> => {
+  const {
+    currentMessage,
+    currentParts,
+    conversation,
+    conversationHistory,
+    participants,
+    logger,
+  } = options;
 
-
-export const processMessage = async (options: ProcessMessageOptions): Promise<void> => {
-  const { currentMessage, currentParts, conversation, conversationHistory, participants, logger } = options;
-
-  logger?.info({
-    messageId: currentMessage.id,
-    conversationId: currentMessage.conversationId,
-    partsCount: currentParts.length,
-    historyCount: conversationHistory.length,
-    participantCount: participants.length,
-    isGroup: conversation?.isGroup || false
-  }, 'Processing message with conversation history');
-
+  logger?.info(
+    {
+      messageId: currentMessage.id,
+      conversationId: currentMessage.conversationId,
+      partsCount: currentParts.length,
+      historyCount: conversationHistory.length,
+      participantCount: participants.length,
+      isGroup: conversation?.isGroup || false,
+    },
+    "Processing message with conversation history",
+  );
 
   // Convert all messages to UI message format
   const uiMessages = conversationHistory.map(({ message, parts }) =>
-    dbMessageToUIMessage(message, parts, conversation.isGroup)
+    dbMessageToUIMessage(message, parts, conversation.isGroup),
   );
 
-  logger?.info('uiMessages generated');
+  logger?.info("uiMessages generated");
 
   // Convert UI messages to model messages for the AI SDK
   const modelMessages = convertToModelMessages(uiMessages);
 
-  logger?.info('modelMessages generated');
+  logger?.info("modelMessages generated");
 
   try {
     const shouldRespond = await checkShouldRespond(modelMessages, options);
 
     if (!shouldRespond) {
-      logger?.info({
-        messageId: currentMessage.id,
-        shouldRespond
-      }, 'Skipping response');
+      logger?.info(
+        {
+          messageId: currentMessage.id,
+          shouldRespond,
+        },
+        "Skipping response",
+      );
       return;
     }
 
-    logger?.info({
-      messageId: currentMessage.id,
-      shouldRespond
-    }, 'Should respond to message');
+    logger?.info(
+      {
+        messageId: currentMessage.id,
+        shouldRespond,
+      },
+      "Should respond to message",
+    );
 
-    const { text, usage } = await mainResponse(modelMessages, options);
+    const {
+      text,
+      usage,
+      messages: aiMessages,
+    } = await mainResponse(modelMessages, options);
 
-    
-
-    logger?.info({
-      messageId: currentMessage.id,
-      response: text,
-      usage
-    }, 'Generated AI response');
+    logger?.info(
+      {
+        messageId: currentMessage.id,
+        response: text,
+        usage,
+        aiMessages,
+      },
+      "Generated AI response",
+    );
 
     // Don't send if there's newer messages in the conversation
-    const recentMessage = await db.query.messages.findFirst({
+    const recentMessage = await db.query.messages.findMany({
       where: eq(messages.conversationId, currentMessage.conversationId),
       orderBy: desc(messages.createdAt),
+      limit: 5,
     });
 
-    if (recentMessage && recentMessage.createdAt > currentMessage.createdAt) {
-      logger?.info({
-        messageId: currentMessage.id,
-        recentMessageId: recentMessage.id,
-      }, 'Skipping response because there are newer messages in the conversation');
+    const firstOutbound = recentMessage.find((m) => m.isOutbound);
+
+    if (firstOutbound && firstOutbound.createdAt > currentMessage.createdAt) {
+      logger?.info(
+        {
+          messageId: currentMessage.id,
+          recentMessageId: firstOutbound.id,
+        },
+        "Skipping response because there are newer messages in the conversation",
+      );
       return;
     }
 
@@ -79,19 +106,24 @@ export const processMessage = async (options: ProcessMessageOptions): Promise<vo
       text,
       conversationId: currentMessage.conversationId,
       logger,
+      aiMessages,
     });
 
-    logger?.info({
-      assistantMessageId: sendResult.message.id,
-      loopMessageId: sendResult.loopMessageIds,
-      conversationId: sendResult.conversationId,
-    }, 'Successfully processed and sent message');
-
+    logger?.info(
+      {
+        loopMessageId: sendResult.loopMessageIds,
+        conversationId: sendResult.conversationId,
+      },
+      "Successfully processed and sent message",
+    );
   } catch (error) {
-    logger?.error({
-      messageId: currentMessage.id,
-      error
-    }, 'Failed to generate AI response');
+    logger?.error(
+      {
+        messageId: currentMessage.id,
+        error,
+      },
+      "Failed to generate AI response",
+    );
     throw error;
   }
 };

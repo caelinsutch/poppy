@@ -1,6 +1,6 @@
-import { pgTable, text, timestamp, uuid, jsonb, integer } from 'drizzle-orm/pg-core';
-import { LearnedPreferences, InferredPreferences } from '@poppy/schemas';
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import type { InferredPreferences, LearnedPreferences } from "@poppy/schemas";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -12,18 +12,25 @@ export const users = pgTable("users", {
   timezone: text("timezone").notNull().default("America/New_York"),
 });
 
-export const userPreferences = pgTable('user_preferences', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id).unique(),
+export const userPreferences = pgTable("user_preferences", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id)
+    .unique(),
 
   // Explicitly learned/confirmed preferences
-  learnedPreferences: jsonb('learned_preferences').notNull().$type<LearnedPreferences>(),
+  learnedPreferences: jsonb("learned_preferences")
+    .notNull()
+    .$type<LearnedPreferences>(),
 
   // Inferred preferences (from behavior)
-  inferredPreferences: jsonb('inferred_preferences').$type<InferredPreferences>(),
+  inferredPreferences: jsonb(
+    "inferred_preferences",
+  ).$type<InferredPreferences>(),
 
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Type exports

@@ -1,5 +1,5 @@
-import { Conversation, Message, Part, User } from "@poppy/db";
-import { FastifyBaseLogger } from "fastify";
+import type { Conversation, Message, Part, User } from "@poppy/db";
+import type { FastifyBaseLogger } from "fastify";
 
 export type ProcessMessageOptions = {
   currentMessage: Message;
@@ -8,4 +8,4 @@ export type ProcessMessageOptions = {
   conversationHistory: { message: Message; parts: Part[] }[];
   participants: User[];
   logger?: FastifyBaseLogger;
-}
+};

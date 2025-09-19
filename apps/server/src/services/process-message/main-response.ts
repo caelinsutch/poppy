@@ -1,11 +1,22 @@
-import { ProcessMessageOptions } from "./types";
-import { generateText, ModelMessage } from "ai";
-import { basePrompt } from "@/prompts/base";
+import {
+  type ModelMessage,
+  readUIMessageStream,
+  streamText,
+  type UIDataTypes,
+  type UIMessage,
+  type UITools,
+} from "ai";
 import { gemini25 } from "@/clients/ai/openrouter";
+import { basePrompt } from "@/prompts/base";
+import type { ToolTypes } from "@/tools";
+import { webSearch } from "@/tools/web-search";
+import type { ProcessMessageOptions } from "./types";
 
-export const mainResponse = async (modelMessages: ModelMessage[], options: ProcessMessageOptions) => {
+export const mainResponse = async (
+  modelMessages: ModelMessage[],
+  options: ProcessMessageOptions,
+) => {
   const { conversation, participants } = options;
-
 
   const system = `
   ${basePrompt}
@@ -13,14 +24,39 @@ export const mainResponse = async (modelMessages: ModelMessage[], options: Proce
 ${conversation.isGroup ? `You are in a group conversation. Each message from users will be prefixed with their user ID (e.g., "user-id-123: Hello") so you can identify who said what. Return back your response with NOTHING ELSE (no prefixing, no suffixing, no nothing).` : `You are in a 1-on-1 conversation with the user.`}
 
 ## Participants
-${participants.map(participant => `- ${participant.id}: ${participant.phoneNumber}`).join('\n')}
+${participants.map((participant) => `- ${participant.id}: ${participant.phoneNumber}`).join("\n")}
   `;
 
-  const response = await generateText({
+  const stream = await streamText<ToolTypes>({
     model: gemini25,
     messages: modelMessages,
     system,
+    tools: {
+      webSearch,
+    },
+    toolChoice: "auto",
   });
 
-  return response
+  const messages: UIMessage<unknown, UIDataTypes, UITools>[] =
+    await new Promise(async (resolve) => {
+      const response = stream.toUIMessageStream({
+        onFinish: ({ messages }) => {
+          resolve(messages);
+        },
+      });
+
+      for await (const _uiMessage of readUIMessageStream({
+        stream: response,
+      })) {
+      }
+    });
+
+  const usage = await stream.usage;
+  const text = await stream.text;
+
+  return {
+    usage,
+    messages,
+    text,
+  };
 };

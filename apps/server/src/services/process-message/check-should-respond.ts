@@ -1,15 +1,16 @@
-import { Conversation } from "@poppy/db";
-import { generateObject, ModelMessage } from "ai";
-import { ProcessMessageOptions } from "./types";
-import { gemini25, openrouter } from "@/clients/ai/openrouter";
+import { generateObject, type ModelMessage } from "ai";
 import z from "zod";
+import { gemini25 } from "@/clients/ai/openrouter";
 import { basePrompt } from "@/prompts/base";
+import type { ProcessMessageOptions } from "./types";
 
-export const checkShouldRespond = async (modelMessages: ModelMessage[], options: ProcessMessageOptions) => {
+export const checkShouldRespond = async (
+  modelMessages: ModelMessage[],
+  options: ProcessMessageOptions,
+) => {
   const { conversation, participants } = options;
 
-  if (!conversation.isGroup)
-    return true;
+  if (!conversation.isGroup) return true;
 
   const { object } = await generateObject({
     model: gemini25,
@@ -21,12 +22,11 @@ export const checkShouldRespond = async (modelMessages: ModelMessage[], options:
     You are in a group conversation. Each message from users will be prefixed with their user ID (e.g., "user-id-123: Hello") so you can identify who said what. 
     
 ## Participants
-${participants.map(participant => `- ${participant.id}: ${participant.phoneNumber}`).join('\n')}
+${participants.map((participant) => `- ${participant.id}: ${participant.phoneNumber}`).join("\n")}
 
-Should you respond to this message? Think about things like the users intent, conversation history, whether you were mentiond / someone is responding to you, etc.
+Return whether or not you should respond to this message. ALWAYS respond if a user mentions you (i.e. Poppy ___) otherwise use your best judgement - if other poeple in the group are talking to each other then you should not respond.
     `,
   });
 
   return object.shouldRespond;
-
-}
+};

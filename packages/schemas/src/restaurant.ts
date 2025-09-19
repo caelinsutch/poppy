@@ -1,5 +1,10 @@
-import { z } from 'zod';
-import { PriceRange, TableType, ConfirmationType, BookingPlatform } from './enums';
+import { z } from "zod";
+import {
+  BookingPlatform,
+  ConfirmationType,
+  PriceRange,
+  TableType,
+} from "./enums";
 
 // Location schema
 export const LocationSchema = z.object({
@@ -7,10 +12,12 @@ export const LocationSchema = z.object({
   city: z.string(),
   state: z.string().optional(),
   zipCode: z.string().optional(),
-  coordinates: z.object({
-    lat: z.number(),
-    lng: z.number(),
-  }).optional(),
+  coordinates: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+    })
+    .optional(),
 });
 
 // Restaurant base schema
