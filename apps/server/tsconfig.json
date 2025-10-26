@@ -2,13 +2,18 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@poppy/typescript-config/base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": false,
-    "incremental": false
+    "incremental": false,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "exclude": ["dist", "node_modules"]
 }

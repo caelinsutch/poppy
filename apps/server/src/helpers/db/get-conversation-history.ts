@@ -58,7 +58,7 @@ export const getConversationHistory = async (
 
       // Add part if exists
       if (row.part) {
-        const messageParts = messageMap.get(row.message.id)?.parts;
+        const messageParts = messageMap.get(row.message.id)?.parts ?? [];
         // Avoid duplicate parts (due to multiple participants in the join)
         if (!messageParts.some((p) => p.id === row.part?.id)) {
           messageParts.push(row.part);

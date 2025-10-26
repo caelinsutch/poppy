@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "start": "tsx dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -28,6 +28,7 @@
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",
     "@types/node": "^24.3.1",
+    "tsc-alias": "^1.8.16",
     "tsx": "catalog:",
     "typescript": "catalog:"
   }

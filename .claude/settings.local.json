@@ -12,7 +12,8 @@
       "Bash(tree:*)",
       "Bash(pnpm list:*)",
       "Bash(pnpm typecheck:*)",
-      "Bash(pnpm db:generate:*)"
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm build)"
     ],
     "deny": [],
     "ask": []
