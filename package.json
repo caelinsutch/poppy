@@ -5,6 +5,7 @@
     "tunnel": "ngrok http --url=pyramidical-ethelene-cognoscitive.ngrok-free.app 3000",
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "start": "turbo run start",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "typecheck": "turbo run typecheck",
