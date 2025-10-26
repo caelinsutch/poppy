@@ -1,5 +1,6 @@
 import fastify from "fastify";
 import { env } from "./env";
+import redisPlugin from "./plugins/redis";
 import { loopMessageRoutes } from "./routes/loop-message";
 
 const server = fastify({
@@ -81,6 +82,7 @@ server.get("/health", async (_request, _reply) => {
   };
 });
 
+server.register(redisPlugin);
 server.register(loopMessageRoutes);
 
 // Global error handlers

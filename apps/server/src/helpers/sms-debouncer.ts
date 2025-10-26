@@ -1,4 +1,4 @@
-import { kv } from "@vercel/kv";
+import type Redis from "ioredis";
 
 interface SmsCacheEntry<T> {
   messages: T[];
@@ -13,6 +13,7 @@ export class SmsDebouncer<T> {
   private readonly cacheKey: string;
 
   constructor(
+    private readonly redis: Redis,
     private readonly conversationId: string,
     private readonly debounceWindowMs: number = 10000,
   ) {
@@ -28,7 +29,10 @@ export class SmsDebouncer<T> {
       conversationId: this.conversationId,
     });
 
-    const existingEntry = await kv.get<SmsCacheEntry<T>>(this.cacheKey);
+    const existingData = await this.redis.get(this.cacheKey);
+    const existingEntry = existingData
+      ? (JSON.parse(existingData) as SmsCacheEntry<T>)
+      : null;
 
     if (!existingEntry) {
       // First message in the window
@@ -37,17 +41,23 @@ export class SmsDebouncer<T> {
         lastProcessed: new Date().toISOString(),
       };
 
-      await kv.set(this.cacheKey, newEntry, {
-        ex: this.debounceWindowMs / 1000,
-      });
+      await this.redis.set(
+        this.cacheKey,
+        JSON.stringify(newEntry),
+        "PX",
+        this.debounceWindowMs,
+      );
       return { shouldProcess: false, messages: [message] };
     }
 
     // Add message to existing entry
     existingEntry.messages.push(message);
-    await kv.set(this.cacheKey, existingEntry, {
-      ex: this.debounceWindowMs / 1000,
-    });
+    await this.redis.set(
+      this.cacheKey,
+      JSON.stringify(existingEntry),
+      "PX",
+      this.debounceWindowMs,
+    );
 
     return {
       shouldProcess: false,
@@ -56,20 +66,25 @@ export class SmsDebouncer<T> {
   }
 
   async getMessages(): Promise<T[]> {
-    const entry = await kv.get<SmsCacheEntry<T>>(this.cacheKey);
-    return entry?.messages ?? [];
+    const data = await this.redis.get(this.cacheKey);
+    if (!data) {
+      return [];
+    }
+    const entry = JSON.parse(data) as SmsCacheEntry<T>;
+    return entry.messages ?? [];
   }
 
   async clear(): Promise<void> {
-    await kv.del(this.cacheKey);
+    await this.redis.del(this.cacheKey);
   }
 
   async processMessages(): Promise<T[]> {
-    const entry = await kv.get<SmsCacheEntry<T>>(this.cacheKey);
-    if (!entry) {
+    const data = await this.redis.get(this.cacheKey);
+    if (!data) {
       return [];
     }
 
+    const entry = JSON.parse(data) as SmsCacheEntry<T>;
     const messages = entry.messages;
     await this.clear();
     return messages;

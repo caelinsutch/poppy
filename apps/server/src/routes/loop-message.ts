@@ -58,6 +58,7 @@ export async function loopMessageRoutes(server: FastifyInstance) {
           handleMessageInbound({
             payload,
             rawPayload: request.body,
+            redis: server.redis,
             logger: server.log,
           });
           break;
