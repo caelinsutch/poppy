@@ -1,5 +1,6 @@
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
 import type { FastifyBaseLogger } from "fastify";
+import type Redis from "ioredis";
 import { getConversationHistory } from "../../helpers/db/get-conversation-history";
 import { SmsDebouncer } from "../../helpers/sms-debouncer";
 import { processMessage } from "../process-message";
@@ -8,6 +9,7 @@ import { storeLoopMessages } from "./store-loop-messages";
 export interface MessageInboundHandlerOptions {
   payload: LoopMessageInboundPayload;
   rawPayload: unknown;
+  redis: Redis;
   logger?: FastifyBaseLogger;
 }
 
@@ -17,7 +19,7 @@ const waitFor = (ms: number): Promise<void> =>
 export const handleMessageInbound = async (
   options: MessageInboundHandlerOptions,
 ): Promise<void> => {
-  const { payload, logger } = options;
+  const { payload, redis, logger } = options;
 
   if (payload.alert_type !== "message_inbound") {
     throw new Error(
@@ -41,6 +43,7 @@ export const handleMessageInbound = async (
   const groupId = payload.group?.group_id ?? "unknown";
   const senderKey = senderName + recipient + groupId;
   const debouncer = new SmsDebouncer<LoopMessageInboundPayload>(
+    redis,
     senderKey,
     debounceTime,
   );

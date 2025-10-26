@@ -14,8 +14,10 @@ export const env = createEnv({
       .enum(["development", "production", "test"])
       .optional()
       .default("development"),
-    KV_REST_API_URL: z.string().min(1),
-    KV_REST_API_TOKEN: z.string().min(1),
+    REDIS_HOST: z.string().optional().default("localhost"),
+    REDIS_PORT: z.coerce.number().optional().default(6379),
+    REDIS_PASSWORD: z.string().optional(),
+    REDIS_DB: z.coerce.number().optional().default(0),
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),
     EXA_API_KEY: z.string().min(1),
