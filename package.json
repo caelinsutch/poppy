@@ -7,7 +7,9 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "server:build": "turbo run build --filter=@poppy/server...",
+    "server:start": "turbo run start --filter=@poppy/server"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
