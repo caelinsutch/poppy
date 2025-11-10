@@ -31,7 +31,7 @@ While you may call tools, ALWAYS return your response in text
 `;
 
   const { gemini25 } = createOpenRouterClient(env.OPENROUTER_API_KEY);
-  const webSearch = createWebSearchTool(env.EXA_API_KEY);
+  const webSearch = createWebSearchTool(env.EXASEARCH_API_KEY);
 
   const stream = await streamText<ToolTypes>({
     model: gemini25,
