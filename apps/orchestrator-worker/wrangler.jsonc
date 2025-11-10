@@ -26,7 +26,6 @@
   ],
   "env": {
     "production": {
-      "name": "poppy-orchestrator-production",
       "durable_objects": {
         "bindings": [
           {
@@ -48,7 +47,6 @@
       }
     },
     "staging": {
-      "name": "poppy-orchestrator-staging",
       "durable_objects": {
         "bindings": [
           {
