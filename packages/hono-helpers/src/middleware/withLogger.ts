@@ -1,8 +1,8 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { useWorkersLogger as useWorkersLoggerBase } from "workers-tagged-logger";
-import type { HonoApp } from "../types";
 import { logger } from "../helpers/logger";
 import { getRequestLogData } from "../helpers/request";
+import type { HonoApp } from "../types";
 
 /**
  * Middleware to set up workers-tagged-logger for request logging
