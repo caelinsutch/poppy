@@ -2,10 +2,18 @@
   "$schema": "https://turborepo.com/schema.json",
   "envMode": "loose",
   "tasks": {
+    "topo": {
+      "dependsOn": ["^topo"]
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "topo"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        ".wrangler/deploy/config.json"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -13,7 +21,18 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
+      "outputs": ["coverage/**"]
+    },
+    "test:ci": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
+      "outputs": ["coverage/**"]
+    },
     "dev": {
+      "dependsOn": ["^build", "topo"],
       "cache": false,
       "persistent": true
     },
@@ -21,6 +40,17 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "deploy": {
+      "dependsOn": ["build", "topo"],
+      "cache": false
+    },
+    "cf-typegen": {
+      "cache": false,
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "check:ci": {
+      "dependsOn": ["typecheck", "lint", "test:ci"]
     }
   }
 }

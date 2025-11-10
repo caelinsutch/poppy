@@ -2,20 +2,22 @@
   "name": "poppy",
   "private": true,
   "scripts": {
-    "tunnel": "ngrok http --url=pyramidical-ethelene-cognoscitive.ngrok-free.app 3000",
+    "tunnel": "ngrok http --url=pyramidical-ethelene-cognoscitive.ngrok-free.app 8787",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "start": "turbo run start",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "server:build": "turbo run build --filter=@poppy/server...",
-    "server:start": "turbo run start --filter=@poppy/server"
+    "lint": "biome check .",
+    "lint:fix": "biome check --unsafe --write .",
+    "format": "biome format --write ."
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.10.5",
     "prettier": "^3.6.2",
     "turbo": "^2.5.6",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "packageManager": "pnpm@10.12.1",
   "engines": {

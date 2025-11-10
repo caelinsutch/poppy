@@ -1,11 +1,6 @@
 {
-  "extends": "@poppy/typescript-config/base.json",
+  "extends": "@poppy/typescript-config/workers-lib.json",
   "compilerOptions": {
-    "lib": ["ES2022"],
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
     "types": ["node"]
   },
   "include": ["**/*.ts", "**/*.tsx"],

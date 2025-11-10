@@ -1,0 +1,19 @@
+{
+  "name": "@poppy/tools",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./bin/*": "./bin/*"
+  },
+  "bin": {
+    "run-wrangler-dev": "./bin/run-wrangler-dev.sh",
+    "run-wrangler-deploy": "./bin/run-wrangler-deploy.sh",
+    "run-wrangler-types": "./bin/run-wrangler-types.sh",
+    "run-tsc": "./bin/run-tsc.sh",
+    "run-vitest": "./bin/run-vitest.sh"
+  },
+  "scripts": {
+    "typecheck": "echo 'No typecheck needed for tools package'"
+  }
+}
