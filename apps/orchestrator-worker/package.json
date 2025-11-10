@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "run-wrangler-dev --env staging",
     "dev:production": "run-wrangler-dev --env production",
-    "deploy": "run-wrangler-deploy --env production",
-    "deploy:staging": "run-wrangler-deploy --env staging",
+    "deploy": "run-wrangler-deploy-production",
+    "deploy:staging": "run-wrangler-deploy-staging",
     "typecheck": "run-tsc",
     "cf-typegen": "run-wrangler-types",
     "test": "run-vitest run",
