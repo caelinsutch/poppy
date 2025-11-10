@@ -8,10 +8,12 @@
   },
   "bin": {
     "run-wrangler-dev": "./bin/run-wrangler-dev.sh",
-    "run-wrangler-deploy": "./bin/run-wrangler-deploy.sh",
+    "run-wrangler-deploy-production": "./bin/run-wrangler-deploy-production.sh",
+    "run-wrangler-deploy-staging": "./bin/run-wrangler-deploy-staging.sh",
     "run-wrangler-types": "./bin/run-wrangler-types.sh",
     "run-tsc": "./bin/run-tsc.sh",
-    "run-vitest": "./bin/run-vitest.sh"
+    "run-vitest": "./bin/run-vitest.sh",
+    "get-version": "./bin/get-version.sh"
   },
   "scripts": {
     "typecheck": "echo 'No typecheck needed for tools package'"
