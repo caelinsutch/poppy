@@ -8,7 +8,9 @@
   "observability": {
     "logs": {
       "enabled": true,
-      "head_sampling_rate": 1 // 100%
+      "head_sampling_rate": 1, // 100%
+      "invocation_logs": true,
+      "persist": true
     }
   },
   "migrations": [
