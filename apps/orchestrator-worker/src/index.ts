@@ -1,10 +1,10 @@
 import {
+  useWorkersLogger,
   withDefaultCors,
   withNotFound,
   withOnError,
 } from "@poppy/hono-helpers";
 import { Hono } from "hono";
-import { logger } from "hono/logger";
 import type { App } from "./context";
 import { loopMessageRoutes } from "./routes/loop-message";
 
@@ -14,7 +14,7 @@ export { MessageDebouncer } from "./durable-objects/message-debouncer";
 const app = new Hono<App>();
 
 // Middleware
-app.use("*", logger());
+app.use("*", useWorkersLogger());
 app.use("*", withDefaultCors());
 
 // Health check routes

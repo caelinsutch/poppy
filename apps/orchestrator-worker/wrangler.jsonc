@@ -3,6 +3,20 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-01-10",
   "compatibility_flags": ["nodejs_compat"],
+  "logpush": true,
+  "upload_source_maps": true,
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1 // 100%
+    }
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MessageDebouncer"]
+    }
+  ],
   "env": {
     "production": {
       "name": "poppy-orchestrator-production",
@@ -10,8 +24,7 @@
         "bindings": [
           {
             "name": "MESSAGE_DEBOUNCER",
-            "class_name": "MessageDebouncer",
-            "script_name": "poppy-orchestrator-production"
+            "class_name": "MessageDebouncer"
           }
         ]
       },
@@ -23,7 +36,8 @@
         }
       ],
       "vars": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "NAME": "poppy-orchestrator"
       }
     },
     "staging": {
@@ -32,8 +46,7 @@
         "bindings": [
           {
             "name": "MESSAGE_DEBOUNCER",
-            "class_name": "MessageDebouncer",
-            "script_name": "poppy-orchestrator-staging"
+            "class_name": "MessageDebouncer"
           }
         ]
       },
@@ -45,7 +58,8 @@
         }
       ],
       "vars": {
-        "NODE_ENV": "staging"
+        "NODE_ENV": "staging",
+        "NAME": "poppy-orchestrator"
       }
     }
   }

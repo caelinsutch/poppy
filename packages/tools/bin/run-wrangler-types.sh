@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-set -e
+#!/bin/sh
+set -eu
 
-# Generate wrangler types
-exec wrangler types
+exec wrangler types --include-env=false

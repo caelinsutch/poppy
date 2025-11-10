@@ -16,10 +16,13 @@ export type SharedHonoEnv = {
    */
   NAME: string;
   /**
-   * Environment of the worker.
-   * All workers should specify env in wrangler.jsonc vars
+   * Node environment
    */
-  ENVIRONMENT: WorkersEnvironment;
+  NODE_ENV: WorkersEnvironment;
+  /**
+   * Optional Sentry release version for logging
+   */
+  SENTRY_RELEASE?: string;
 };
 /** Global Hono variables */
 export type SharedHonoVariables = {
