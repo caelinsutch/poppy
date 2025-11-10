@@ -6,8 +6,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "typecheck": "run-tsc",
-    "test": "run-vitest"
+    "typecheck": "run-tsc"
   },
   "dependencies": {
     "@hono/standard-validator": "0.1.5",
@@ -19,6 +18,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.9.12",
     "@cloudflare/workers-types": "4.20251011.0",
+    "@poppy/typescript-config": "workspace:*",
     "@poppy/tools": "workspace:*",
     "vitest": "3.2.4"
   }
