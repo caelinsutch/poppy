@@ -1,0 +1,25 @@
+{
+  "name": "@poppy/hono-helpers",
+  "version": "0.1.4",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "run-tsc",
+    "test": "run-vitest"
+  },
+  "dependencies": {
+    "@hono/standard-validator": "0.1.5",
+    "hono": "4.9.11",
+    "http-codex": "0.6.2",
+    "workers-tagged-logger": "0.13.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.9.12",
+    "@cloudflare/workers-types": "4.20251011.0",
+    "@poppy/tools": "workspace:*",
+    "vitest": "3.2.4"
+  }
+}

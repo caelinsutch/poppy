@@ -1,0 +1,250 @@
+import {
+  conversationParticipants,
+  conversations,
+  type Message,
+  messages,
+  type NewConversation,
+  type NewPart,
+  type Part,
+  parts,
+  users,
+} from "@poppy/db";
+import type { LoopMessageInboundPayload } from "@poppy/schemas";
+import { generateId, type TextPart, type UIMessage } from "ai";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import type { Database } from "../../db/client";
+
+export const storeLoopMessages = async (
+  db: Database,
+  payloads: LoopMessageInboundPayload[],
+): Promise<{ message: Message; parts: Part[] } | null> => {
+  if (payloads.length === 0) {
+    console.warn("No messages to store");
+    return null;
+  }
+
+  // Use the first payload for channel/conversation lookup
+  const primaryPayload = payloads[0];
+  console.log("primaryPayload", primaryPayload);
+
+  // Step 1: Extract the UI message with associated parts
+  const messageParts: TextPart[] = payloads.map((payload) => ({
+    type: "text" as const,
+    text: payload.text,
+  }));
+
+  const uiMessage: UIMessage = {
+    id: generateId(),
+    role: "user",
+    parts: messageParts,
+  };
+
+  console.log("Storing debounced inbound messages", {
+    messageData: {
+      id: uiMessage.id,
+      role: uiMessage.role,
+      parts: uiMessage.parts,
+      messageCount: payloads.length,
+    },
+  });
+
+  try {
+    // Step 2: Create users for each person in conversation
+    // Determine if this is a group message and extract group ID
+    let loopMessageGroupId: string | undefined;
+    const participants = new Set<string>();
+
+    // Check if this is a group message (has a group field)
+    if (primaryPayload.group) {
+      // Extract group ID and participants from group messages
+      loopMessageGroupId = primaryPayload.group.group_id;
+      if (primaryPayload.group.participants) {
+        primaryPayload.group.participants.forEach((p: string) =>
+          participants.add(p),
+        );
+      }
+    } else {
+      // For regular 1-on-1 messages, add recipient
+      if (primaryPayload.recipient) {
+        participants.add(primaryPayload.recipient);
+      }
+    }
+
+    const isGroupMessage = !!loopMessageGroupId;
+
+    const participantArray = Array.from(participants);
+
+    // Batch lookup all users at once
+    const existingUsers = await db
+      .select()
+      .from(users)
+      .where(inArray(users.phoneNumber, participantArray));
+
+    const userMap = new Map<string, string>();
+    existingUsers.forEach((user) => {
+      userMap.set(user.phoneNumber, user.id);
+    });
+
+    // Find missing users
+    const missingUsers = participantArray.filter((p) => !userMap.has(p));
+
+    // Batch create missing users
+    if (missingUsers.length > 0) {
+      const newUsers = await db
+        .insert(users)
+        .values(missingUsers.map((phoneNumber) => ({ phoneNumber })))
+        .returning();
+
+      newUsers.forEach((user) => {
+        userMap.set(user.phoneNumber, user.id);
+      });
+      console.log("Created new users", {
+        count: newUsers.length,
+        phoneNumbers: missingUsers,
+      });
+    }
+
+    // Step 3: Create the conversation and conversationParticipants rows
+    let conversationId: string;
+
+    // Look for existing conversation by checking participants
+    // For 1-on-1: find conversation with exactly these participants
+    // For groups: find by loopMessageGroupId if available
+    let existingConversation: any[] = [];
+
+    if (loopMessageGroupId) {
+      // For group conversations, find by group ID
+      existingConversation = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.loopMessageGroupId, loopMessageGroupId))
+        .limit(1);
+    } else {
+      // For 1-on-1 conversations, find by matching all participants
+      // Get all user IDs involved
+      const userIds = Array.from(userMap.values());
+
+      // Find conversations where all these users are participants
+      const conversationsWithParticipants = await db
+        .select({
+          conversation: conversations,
+          participantCount: sql<number>`count(distinct ${conversationParticipants.userId})`,
+        })
+        .from(conversations)
+        .innerJoin(
+          conversationParticipants,
+          eq(conversationParticipants.conversationId, conversations.id),
+        )
+        .where(
+          and(
+            inArray(conversationParticipants.userId, userIds),
+            eq(conversations.isGroup, false),
+          ),
+        )
+        .groupBy(conversations.id)
+        .having(
+          sql`count(distinct ${conversationParticipants.userId}) = ${userIds.length}`,
+        );
+
+      if (conversationsWithParticipants.length > 0) {
+        existingConversation = [conversationsWithParticipants[0].conversation];
+      }
+    }
+
+    if (existingConversation.length > 0) {
+      conversationId = existingConversation[0].id;
+    } else {
+      // Create new conversation with all participants in a transaction
+      const result = await db.transaction(async (tx) => {
+        const conversationData: NewConversation = {
+          isGroup: isGroupMessage,
+          sender: primaryPayload.sender_name!,
+          loopMessageGroupId,
+          channelType: "loop",
+        };
+
+        console.log("Creating new conversation", { conversationData });
+
+        // Only add loopMessageGroupId if it's defined (for group conversations)
+        if (loopMessageGroupId) {
+          conversationData.loopMessageGroupId = loopMessageGroupId;
+        }
+
+        const [newConversation] = await tx
+          .insert(conversations)
+          .values(conversationData)
+          .returning();
+
+        // Batch insert all participants
+        const participantValues = Array.from(userMap.values()).map(
+          (userId) => ({
+            conversationId: newConversation.id,
+            userId,
+          }),
+        );
+
+        await tx.insert(conversationParticipants).values(participantValues);
+
+        return newConversation.id;
+      });
+
+      conversationId = result;
+
+      console.log("Created new conversation with participants", {
+        conversationId,
+        isGroup: isGroupMessage,
+        participantCount: userMap.size,
+      });
+    }
+
+    // Step 4: Create the message attached to the right user
+    // For incoming messages, set userId to the sender's user ID
+    const senderUserId = primaryPayload.recipient
+      ? userMap.get(primaryPayload.recipient)
+      : undefined;
+
+    // Convert UIMessage to DB format
+    const messageData = {
+      id: uiMessage.id,
+      conversationId,
+      userId: senderUserId,
+      isOutbound: false,
+      rawPayload: primaryPayload,
+    };
+
+    const partsData: NewPart[] = uiMessage.parts.map((part, index) => ({
+      messageId: uiMessage.id,
+      type: part.type,
+      content: {
+        ...part,
+        // Include raw payload with the first part if provided
+        ...(index === 0 ? { rawPayload: primaryPayload } : {}),
+      },
+      order: index,
+    }));
+
+    // Insert message first, then parts (due to foreign key constraint)
+    const [insertedMessage] = await db
+      .insert(messages)
+      .values(messageData)
+      .returning();
+    const insertedParts = await db.insert(parts).values(partsData).returning();
+
+    console.log("Successfully stored inbound message", {
+      messageId: uiMessage.id,
+      conversationId,
+      senderUserId,
+      isOutbound: false,
+      isGroup: isGroupMessage,
+      participantCount: userMap.size,
+    });
+
+    return {
+      message: insertedMessage,
+      parts: insertedParts,
+    };
+  } catch (error) {
+    console.error("Failed to store messages in database", { error, payloads });
+    throw error;
+  }
+};

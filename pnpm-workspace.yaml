@@ -1,13 +1,23 @@
-packages:
-  - apps/*
-  - packages/*
-
 catalog:
   typescript: 5.9.2
   zod: 4.1.5
   tsx: 4.20.5
   ai: 5.0.39
   drizzle-orm: 0.44.5
+  vitest: 3.2.4
+  wrangler: 4.46.0
+
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'turbo/generators'
+
+configDependencies:
+  '@pnpm/trusted-deps': 0.1.1+sha512-jI3PWNv2zCg9+KHI3qQTsa534c5nisZQrHFeWSyyHoUXcuzvjkXxQKPFLJ/qtNAF+PtKHDlRntO2aZKb3VDuHQ==
+
+onlyBuiltDependenciesFile: node_modules/.pnpm-config/@pnpm/trusted-deps/allow.json
 
 onlyBuiltDependencies:
+  - core-js-pure
+  - unrs-resolver
   - supabase

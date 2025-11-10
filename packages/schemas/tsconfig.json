@@ -1,5 +1,5 @@
 {
-  "extends": "@poppy/typescript-config/base.json",
+  "extends": "@poppy/typescript-config/workers-lib.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"

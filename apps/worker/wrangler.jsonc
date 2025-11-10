@@ -1,0 +1,52 @@
+{
+  "name": "poppy-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "env": {
+    "production": {
+      "name": "poppy-worker-production",
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "MESSAGE_DEBOUNCER",
+            "class_name": "MessageDebouncer",
+            "script_name": "poppy-worker-production"
+          }
+        ]
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "125ed9ac17a64039aed9e68eb11d38cd",
+          "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+        }
+      ],
+      "vars": {
+        "NODE_ENV": "production"
+      }
+    },
+    "staging": {
+      "name": "poppy-worker-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "MESSAGE_DEBOUNCER",
+            "class_name": "MessageDebouncer",
+            "script_name": "poppy-worker-staging"
+          }
+        ]
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "91f63bb5e350490baae83bfe55e249f2",
+          "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+        }
+      ],
+      "vars": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}
