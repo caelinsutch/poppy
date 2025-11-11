@@ -8,6 +8,15 @@ export default defineWorkersProject({
         miniflare: {
           bindings: {
             ENVIRONMENT: "VITEST",
+            // Mock HYPERDRIVE binding with a test connection string
+            HYPERDRIVE: {
+              connectionString:
+                process.env.DATABASE_URL ||
+                "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+            },
+          },
+          durableObjects: {
+            MESSAGE_DEBOUNCER: "MessageDebouncer",
           },
         },
       },
