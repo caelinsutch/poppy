@@ -9,6 +9,7 @@ dist/
 .dev.vars
 .env.development
 .env.production
+.env.*
 
 # Logs
 *.log
