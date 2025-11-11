@@ -11,6 +11,7 @@ import type { LoopMessageSendRequest } from "@poppy/schemas";
 import { generateId, type UIMessage } from "ai";
 import { eq } from "drizzle-orm";
 import { createLoopClient } from "../../clients/loop-message";
+import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
 import type { UIToolTypes } from "../../tools";
 
@@ -19,7 +20,7 @@ export interface SendLoopMessageOptions {
   conversationId: string;
   aiMessages: UIMessage<unknown, any, UIToolTypes>[];
   db: Database;
-  env: Env;
+  env: WorkerEnv;
 }
 
 export const sendLoopMessage = async (options: SendLoopMessageOptions) => {

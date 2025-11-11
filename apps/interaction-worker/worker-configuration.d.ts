@@ -8862,7 +8862,7 @@ declare module "cloudflare:email" {
     prototype: EmailMessage;
     new (from: string, to: string, raw: ReadableStream | string): EmailMessage;
   };
-  export { _EmailMessage as EmailMessage };
+  export type { _EmailMessage as EmailMessage };
 }
 /**
  * Hello World binding to serve as an explanatory example. DO NOT USE
@@ -9511,7 +9511,16 @@ declare namespace Cloudflare {
   // will merge all declarations.
   //
   // You can use `wrangler types` to generate the `Env` type automatically.
-  type Env = {};
+  type Env = {
+    NODE_ENV: string;
+    NAME: string;
+    // Secrets
+    LOOP_AUTHORIZATION_KEY: string;
+    LOOP_SECRET_KEY: string;
+    OPENROUTER_API_KEY: string;
+    OPENAI_API_KEY: string;
+    EXASEARCH_API_KEY: string;
+  };
   // Project-specific parameters used to inform types.
   //
   // This interface is, again, intended to be declared in project-specific files, and then that
@@ -9689,7 +9698,7 @@ declare module "cloudflare:sockets" {
     address: string | SocketAddress,
     options?: SocketOptions,
   ): Socket;
-  export { _connect as connect };
+  export type { _connect as connect };
 }
 type ConversionResponse = {
   name: string;
