@@ -87,3 +87,4 @@ jobs:
         run: pnpm test
         env:
           NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
