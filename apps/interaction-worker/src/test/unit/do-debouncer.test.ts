@@ -1,8 +1,8 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
-import { DODebouncer } from "../../helpers/do-debouncer";
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { WorkerEnv } from "../../context";
+import { DODebouncer } from "../../helpers/do-debouncer";
 
 // Extend ProvidedEnv to include our bindings
 declare module "cloudflare:test" {
