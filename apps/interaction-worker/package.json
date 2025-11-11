@@ -1,5 +1,5 @@
 {
-  "name": "@poppy/orchestrator-worker",
+  "name": "@poppy/interaction-worker",
   "private": true,
   "version": "0.0.0",
   "sideEffects": false,

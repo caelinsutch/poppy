@@ -5,8 +5,9 @@ import type { MessageDebouncer } from "./durable-objects/message-debouncer";
 
 // Re-export the Env from the global Cloudflare namespace with proper DO typing
 export type WorkerEnv = SharedHonoEnv &
-  Env & {
+  Cloudflare.Env & {
     MESSAGE_DEBOUNCER: DurableObjectNamespace<MessageDebouncer>;
+    HYPERDRIVE: Hyperdrive;
   };
 
 export type Variables = SharedHonoVariables;

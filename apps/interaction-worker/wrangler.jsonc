@@ -1,9 +1,9 @@
 {
-  "name": "poppy-orchestrator",
+  "name": "poppy-interaction",
   "main": "src/index.ts",
   "compatibility_date": "2025-01-10",
   "compatibility_flags": ["nodejs_compat"],
-  "logpush": true,
+  "logpush": false,
   "upload_source_maps": true,
   "observability": {
     "logs": {
@@ -24,9 +24,13 @@
       "new_sqlite_classes": ["MessageDebouncer"]
     }
   ],
+  "vars": {
+    "NODE_ENV": "production",
+    "NAME": "poppy-interaction"
+  },
   "env": {
     "production": {
-      "name": "poppy-orchestrator-production",
+      "name": "poppy-interaction-production",
       "durable_objects": {
         "bindings": [
           {
@@ -44,11 +48,11 @@
       ],
       "vars": {
         "NODE_ENV": "production",
-        "NAME": "poppy-orchestrator"
+        "NAME": "poppy-interaction"
       }
     },
     "staging": {
-      "name": "poppy-orchestrator-staging",
+      "name": "poppy-interaction-staging",
       "durable_objects": {
         "bindings": [
           {
@@ -66,7 +70,7 @@
       ],
       "vars": {
         "NODE_ENV": "staging",
-        "NAME": "poppy-orchestrator"
+        "NAME": "poppy-interaction"
       }
     }
   }

@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
+import type { WorkerEnv } from "../context";
 
 interface MessageEntry {
   messages: LoopMessageInboundPayload[];
@@ -9,7 +10,7 @@ interface MessageEntry {
 export class MessageDebouncer extends DurableObject {
   private messageEntries: Map<string, MessageEntry>;
 
-  constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
+  constructor(ctx: DurableObjectState, env: WorkerEnv) {
     super(ctx, env);
     this.messageEntries = new Map();
   }

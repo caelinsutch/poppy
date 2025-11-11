@@ -1,4 +1,6 @@
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
+import type { Env } from "hono";
+import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
 import type { MessageDebouncer } from "../../durable-objects/message-debouncer";
 import { getConversationHistory } from "../../helpers/db/get-conversation-history";
@@ -12,7 +14,7 @@ export interface MessageInboundHandlerOptions {
   doNamespace: DurableObjectNamespace<MessageDebouncer>;
   db: Database;
   ctx: ExecutionContext;
-  env: Env;
+  env: WorkerEnv;
 }
 
 const waitFor = (ms: number): Promise<void> =>

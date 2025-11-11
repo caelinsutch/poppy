@@ -1,4 +1,5 @@
 import type { Conversation, Message, Part, User } from "@poppy/db";
+import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
 
 export type ProcessMessageOptions = {
@@ -7,6 +8,6 @@ export type ProcessMessageOptions = {
   conversation: Conversation;
   conversationHistory: { message: Message; parts: Part[] }[];
   participants: User[];
-  env: Env;
+  env: WorkerEnv;
   db: Database;
 };

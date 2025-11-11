@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/orchestrator-worker/**"
+      - "apps/interaction-worker/**"
       - "packages/**"
       - ".github/workflows/deploy.yml"
 
@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: production
-      url: https://poppy-orchestrator-production.caelinsutch.workers.dev
+      url: https://poppy-interaction-production.caelinsutch.workers.dev
 
     steps:
       - name: Checkout code
