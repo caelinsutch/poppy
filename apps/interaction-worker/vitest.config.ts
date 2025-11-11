@@ -4,19 +4,19 @@ export default defineWorkersProject({
   test: {
     poolOptions: {
       workers: {
+        singleWorker: true,
         wrangler: { configPath: `${__dirname}/wrangler.jsonc` },
         miniflare: {
           bindings: {
             ENVIRONMENT: "VITEST",
-            // Mock HYPERDRIVE binding with a test connection string
-            HYPERDRIVE: {
-              connectionString:
-                process.env.DATABASE_URL ||
-                "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-            },
           },
           durableObjects: {
             MESSAGE_DEBOUNCER: "MessageDebouncer",
+          },
+          hyperdrives: {
+            HYPERDRIVE:
+              process.env.DATABASE_URL ||
+              "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
           },
         },
       },
