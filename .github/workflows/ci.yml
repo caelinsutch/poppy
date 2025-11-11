@@ -88,3 +88,4 @@ jobs:
         env:
           NODE_ENV: test
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: ${{ secrets.DATABASE_URL }}
