@@ -9,6 +9,12 @@ export default defineWorkersProject({
         singleWorker: true,
         wrangler: { configPath: `${__dirname}/wrangler.jsonc` },
         miniflare: {
+          compatibilityFlags: [
+            "nodejs_compat",
+            "enable_nodejs_tty_module",
+            "enable_nodejs_fs_module",
+            "enable_nodejs_http_modules",
+          ],
           bindings: {
             ENVIRONMENT: "VITEST",
           },
