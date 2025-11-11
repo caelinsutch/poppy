@@ -1,5 +1,7 @@
 import { defineWorkersProject } from "@cloudflare/vitest-pool-workers/config";
 
+console.log(process.env.DATABASE_URL);
+
 export default defineWorkersProject({
   test: {
     poolOptions: {
