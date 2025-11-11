@@ -24,12 +24,14 @@
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["DATABASE_URL"]
     },
     "test:ci": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["DATABASE_URL"]
     },
     "dev": {
       "dependsOn": ["^build", "topo"],
