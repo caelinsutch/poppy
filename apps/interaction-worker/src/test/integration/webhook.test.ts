@@ -11,12 +11,12 @@ vi.mock("../../clients/ai/openrouter", () => ({
 
 // Mock the Loop Message client module
 vi.mock("../../clients/loop-message", () => ({
-  createLoopClient: vi.fn(() => ({
+  loopClient: {
     sendMessage: vi.fn().mockResolvedValue({
       success: true,
       message_id: "mock-message-id",
     }),
-  })),
+  },
 }));
 
 // Mock the web search tool
@@ -187,7 +187,7 @@ describe("Webhook endpoint", () => {
     const messageParts = await db
       .select()
       .from(parts)
-      .where(eq(parts.messageId, inboundMessage?.id));
+      .where(eq(parts.messageId, inboundMessage?.id!));
     expect(messageParts.length).toBeGreaterThan(0);
     expect(messageParts[0].type).toBe("text");
     expect(messageParts[0].content).toMatchObject({
