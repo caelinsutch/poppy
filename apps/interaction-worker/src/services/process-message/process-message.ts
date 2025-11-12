@@ -20,6 +20,7 @@ export const processMessage = async (
     db,
   } = options;
 
+
   console.log("Processing message with conversation history", {
     messageId: currentMessage.id,
     conversationId: currentMessage.conversationId,
@@ -28,6 +29,8 @@ export const processMessage = async (
     participantCount: participants.length,
     isGroup: conversation?.isGroup || false,
   });
+
+  console.log(env)
 
   // Convert all messages to UI message format
   const modelMessages = dbMessagesToModelMessages(
