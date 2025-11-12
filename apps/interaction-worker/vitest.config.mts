@@ -6,7 +6,10 @@ export default defineWorkersProject({
       workers: {
         remoteBindings: true,
         singleWorker: true,
-        wrangler: { configPath: `${__dirname}/wrangler.jsonc` },
+        wrangler: {
+          environment: "staging",
+          configPath: `${__dirname}/wrangler.jsonc`,
+        },
         miniflare: {
           compatibilityFlags: [
             "nodejs_compat",
