@@ -143,7 +143,7 @@ describe("Webhook endpoint", () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Verify data was stored in database
-    const db = getDb((env as any).DATABASE_URL as string);
+    const db = getDb(env.HYPERDRIVE.connectionString);
 
     // Check user was created
     const createdUsers = await db
