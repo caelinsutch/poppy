@@ -2,7 +2,10 @@
   "name": "poppy-interaction",
   "main": "src/index.ts",
   "compatibility_date": "2025-11-05",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
   "logpush": false,
   "upload_source_maps": true,
   "observability": {
