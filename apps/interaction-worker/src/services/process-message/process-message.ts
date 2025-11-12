@@ -30,8 +30,6 @@ export const processMessage = async (
     isGroup: conversation?.isGroup || false,
   });
 
-  console.log(env)
-
   // Convert all messages to UI message format
   const modelMessages = dbMessagesToModelMessages(
     conversationHistory,
