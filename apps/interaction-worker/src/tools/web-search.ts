@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { tool } from "ai";
 import Exa from "exa-js";
 import { z } from "zod";
@@ -26,3 +27,5 @@ export const createWebSearchTool = (exaApiKey: string) => {
     },
   });
 };
+
+export const webSearch = createWebSearchTool(env.EXASEARCH_API_KEY);

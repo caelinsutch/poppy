@@ -1,9 +1,9 @@
 import { messages } from "@poppy/db";
 import { dbMessagesToModelMessages } from "@poppy/lib";
 import { desc, eq } from "drizzle-orm";
+import { sendLoopMessage } from "../loop/send-loop-message";
 import { checkShouldRespond } from "./check-should-respond";
 import { mainResponse } from "./main-response";
-import { sendLoopMessage } from "./send-loop-message";
 import type { ProcessMessageOptions } from "./types";
 
 export const processMessage = async (

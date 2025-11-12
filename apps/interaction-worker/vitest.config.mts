@@ -11,12 +11,6 @@ export default defineWorkersProject({
           configPath: `${__dirname}/wrangler.jsonc`,
         },
         miniflare: {
-          compatibilityFlags: [
-            "nodejs_compat",
-            "enable_nodejs_tty_module",
-            "enable_nodejs_fs_module",
-            "enable_nodejs_http_modules",
-          ],
           bindings: {
             NODE_ENV: "test",
             DATABASE_URL:

@@ -15,6 +15,12 @@
   "linter": {
     "enabled": true,
     "rules": {
+      "correctness": {
+        "noUnusedImports": {
+          "fix": "safe",
+          "level": "error"
+        }
+      },
       "recommended": true,
       "suspicious": {
         "noAsyncPromiseExecutor": "off",
