@@ -92,3 +92,59 @@ export const dbMessagesToUIMessages = (
   messagesWithParts.map(({ message, parts }) =>
     dbMessageToUIMessage(message, parts, isGroup),
   );
+
+/**
+ * Convert a database message with its parts to a ModelMessage (AI SDK format)
+ */
+export const dbMessageToModelMessage = (
+  message: Message,
+  messageParts: Part[],
+  isGroup?: boolean,
+): ModelMessage => {
+  // Sort parts by order
+  const sortedParts = messageParts.sort((a, b) => a.order - b.order);
+
+  // Extract role from rawPayload or determine from isOutbound
+  const rawPayload = message.rawPayload as any;
+  const role = rawPayload?.role || (message.isOutbound ? "assistant" : "user");
+
+  // Build content array from parts
+  const content = sortedParts.map((part, index) => {
+    const partContent = part.content as any;
+    const { rawPayload: _, ...cleanContent } = partContent;
+
+    // For group messages, prepend user ID to the first text part
+    if (
+      isGroup &&
+      message.userId &&
+      index === 0 &&
+      cleanContent.type === "text"
+    ) {
+      return {
+        type: "text",
+        text: `${message.userId}: ${cleanContent.text}`,
+      };
+    }
+
+    return cleanContent;
+  });
+
+  return {
+    role,
+    content,
+  };
+};
+
+/**
+ * Convert multiple database messages to ModelMessages (AI SDK format)
+ */
+export const dbMessagesToModelMessages = (
+  messagesWithParts: Array<{
+    message: Message;
+    parts: Part[];
+  }>,
+  isGroup?: boolean,
+): ModelMessage[] =>
+  messagesWithParts.map(({ message, parts }) =>
+    dbMessageToModelMessage(message, parts, isGroup),
+  );

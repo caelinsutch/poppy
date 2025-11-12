@@ -1,5 +1,5 @@
 import { messages } from "@poppy/db";
-import { dbMessageToUIMessage } from "@poppy/lib";
+import { dbMessagesToModelMessages, dbMessageToUIMessage } from "@poppy/lib";
 import { convertToModelMessages } from "ai";
 import { desc, eq } from "drizzle-orm";
 import { checkShouldRespond } from "./check-should-respond";
@@ -30,14 +30,14 @@ export const processMessage = async (
   });
 
   // Convert all messages to UI message format
-  const uiMessages = conversationHistory.map(({ message, parts }) =>
-    dbMessageToUIMessage(message, parts, conversation.isGroup),
-  );
+  const modelMessages = dbMessagesToModelMessages(
+    conversationHistory,
+    conversation?.isGroup
+  )
 
-  console.log("Generated UI messages");
-
-  // Convert UI messages to model messages for the AI SDK
-  const modelMessages = convertToModelMessages(uiMessages);
+  console.log("Generated UI messages", {
+    modelMessages
+  });
 
   console.log("Generated model messages");
 
