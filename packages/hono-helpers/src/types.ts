@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export type WorkersEnvironment = z.infer<typeof WorkersEnvironment>;
 export const WorkersEnvironment = z.enum([
-  "VITEST",
+  "test",
   "development",
   "staging",
   "production",

@@ -18,7 +18,7 @@ export default defineWorkersProject({
             "enable_nodejs_http_modules",
           ],
           bindings: {
-            ENVIRONMENT: "VITEST",
+            NODE_ENV: "test",
           },
           durableObjects: {
             MESSAGE_DEBOUNCER: "MessageDebouncer",
