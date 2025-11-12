@@ -125,7 +125,10 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
       id: generateId(),
       messageId,
       type: "text",
-      content: text,
+      content: {
+        type: "text",
+        text: text,
+      },
       createdAt: now,
       order: 0,
     },
