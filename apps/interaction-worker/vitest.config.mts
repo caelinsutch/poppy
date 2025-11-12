@@ -16,8 +16,6 @@ export default defineWorkersProject({
             DATABASE_URL:
               process.env.DATABASE_URL ||
               "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-            EXASEARCH_API_KEY: "mock-exa-api-key",
-            OPENROUTER_API_KEY: "mock-openrouter-api-key",
           },
           durableObjects: {
             MESSAGE_DEBOUNCER: "MessageDebouncer",

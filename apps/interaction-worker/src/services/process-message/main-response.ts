@@ -1,7 +1,6 @@
-import { generateText, type ModelMessage, stepCountIs } from "ai";
+import { type ModelMessage, stepCountIs, ToolLoopAgent } from "ai";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
-import type { ToolTypes } from "../../tools";
 import { webSearch } from "../../tools/web-search";
 import type { ProcessMessageOptions } from "./types";
 
@@ -22,15 +21,17 @@ ${participants.map((participant) => `- ${participant.id}: ${participant.phoneNum
 While you may call tools, ALWAYS return your response in text
 `;
 
-  const { text, usage } = await generateText<ToolTypes>({
+  const agent = new ToolLoopAgent({
     model: gemini25,
-    messages: modelMessages,
-    system,
+    instructions: system,
     tools: {
       webSearch,
     },
-    toolChoice: "auto",
-    stopWhen: stepCountIs(2),
+    stopWhen: stepCountIs(10), // Allow up to 20 steps
+  });
+
+  const { text, usage } = await agent.generate({
+    messages: modelMessages,
   });
 
   const messages: ModelMessage[] = [
