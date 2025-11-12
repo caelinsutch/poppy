@@ -94,7 +94,6 @@ export const processMessage = async (
       conversationId: currentMessage.conversationId,
       aiMessages,
       db,
-      env,
     });
 
     console.log("Successfully processed and sent message", {
