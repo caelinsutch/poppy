@@ -143,7 +143,7 @@ describe("Webhook endpoint", () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Verify data was stored in database
-    const db = getDb(env.DATABASE_URL as string);
+    const db = getDb((env as any).DATABASE_URL as string);
 
     // Check user was created
     const createdUsers = await db
@@ -177,11 +177,13 @@ describe("Webhook endpoint", () => {
     expect(inboundMessage).toBeDefined();
     expect(inboundMessage?.userId).toBe(user.id);
 
-    // Check parts were created for the inbound message
+    expect(inboundMessage?.id).toBeDefined();
+
+    // Check parts were created for the inbound messag
     const messageParts = await db
       .select()
       .from(parts)
-      .where(eq(parts.messageId, inboundMessage?.id));
+      .where(eq(parts.messageId, inboundMessage!.id));
     expect(messageParts.length).toBeGreaterThan(0);
     expect(messageParts[0].type).toBe("text");
     expect(messageParts[0].content).toMatchObject({
