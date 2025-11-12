@@ -1,5 +1,5 @@
 import type { Message, NewMessage, NewPart, Part } from "@poppy/db";
-import type { UIMessage, UIMessagePart } from "ai";
+import type { ModelMessage, UIMessage, UIMessagePart } from "ai";
 
 /**
  * Convert a database message with its parts to a UIMessage
@@ -68,7 +68,6 @@ export const uiMessageToDBFormat = (
     type: part.type,
     content: {
       ...part,
-      // Include raw payload with the first part if provided
       ...(index === 0 && rawPayload ? { rawPayload } : {}),
     },
     order: index,

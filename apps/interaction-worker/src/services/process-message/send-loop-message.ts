@@ -8,17 +8,16 @@ import {
   users,
 } from "@poppy/db";
 import type { LoopMessageSendRequest } from "@poppy/schemas";
-import { generateId, type UIMessage } from "ai";
+import { generateId, type ModelMessage, type UIMessage } from "ai";
 import { eq } from "drizzle-orm";
 import { createLoopClient } from "../../clients/loop-message";
 import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
-import type { UIToolTypes } from "../../tools";
 
 export interface SendLoopMessageOptions {
   text: string;
   conversationId: string;
-  aiMessages: UIMessage<unknown, any, UIToolTypes>[];
+  aiMessages: ModelMessage[];
   db: Database;
   env: WorkerEnv;
 }
