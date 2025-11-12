@@ -4,6 +4,7 @@ export default defineWorkersProject({
   test: {
     poolOptions: {
       workers: {
+        remoteBindings: true,
         singleWorker: true,
         wrangler: { configPath: `${__dirname}/wrangler.jsonc` },
         miniflare: {
