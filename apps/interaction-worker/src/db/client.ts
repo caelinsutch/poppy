@@ -7,9 +7,6 @@ import type { WorkerEnv } from "../context";
  * @returns Drizzle database instance with all schemas
  */
 export function createDatabaseClient(env: WorkerEnv) {
-  const isTest = env.NODE_ENV === "test";
-  console.log(env);
-  // Use Hyperdrive connection string for optimized PostgreSQL access
   return getDb(env.HYPERDRIVE.connectionString);
 }
 
