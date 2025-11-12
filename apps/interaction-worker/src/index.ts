@@ -47,7 +47,6 @@ app.get("/health", async (c) => {
 
 // Webhook handler at root
 app.post("/", async (c) => {
-  console.log(process.env);
   const body = await c.req.json();
   console.log("Received webhook payload", body);
 
