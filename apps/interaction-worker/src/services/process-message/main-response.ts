@@ -1,4 +1,5 @@
 import {
+  generateText,
   type ModelMessage,
   readUIMessageStream,
   stepCountIs,
@@ -7,6 +8,7 @@ import {
   type UIMessage,
   type UITools,
 } from "ai";
+import { uuid } from "zod";
 import { createOpenRouterClient } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import type { ToolTypes } from "../../tools";
@@ -33,7 +35,7 @@ While you may call tools, ALWAYS return your response in text
   const { gemini25 } = createOpenRouterClient(env.OPENROUTER_API_KEY);
   const webSearch = createWebSearchTool(env.EXASEARCH_API_KEY);
 
-  const stream = streamText<ToolTypes>({
+  const { text, usage } = await generateText<ToolTypes>({
     model: gemini25,
     messages: modelMessages,
     system,
@@ -44,22 +46,13 @@ While you may call tools, ALWAYS return your response in text
     stopWhen: stepCountIs(2),
   });
 
-  const messages: UIMessage<unknown, UIDataTypes, UITools>[] =
-    await new Promise(async (resolve) => {
-      const response = stream.toUIMessageStream({
-        onFinish: ({ messages }) => {
-          resolve(messages);
-        },
-      });
-
-      for await (const _uiMessage of readUIMessageStream({
-        stream: response,
-      })) {
-      }
-    });
-
-  const usage = await stream.usage;
-  const text = await stream.text;
+  const messages: ModelMessage[] = [
+    ...modelMessages,
+    {
+      role: "assistant",
+      content: text,
+    },
+  ];
 
   return {
     usage,
