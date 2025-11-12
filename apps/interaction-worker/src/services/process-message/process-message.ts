@@ -1,6 +1,5 @@
 import { messages } from "@poppy/db";
-import { dbMessagesToModelMessages, dbMessageToUIMessage } from "@poppy/lib";
-import { convertToModelMessages } from "ai";
+import { dbMessagesToModelMessages } from "@poppy/lib";
 import { desc, eq } from "drizzle-orm";
 import { checkShouldRespond } from "./check-should-respond";
 import { mainResponse } from "./main-response";
@@ -20,7 +19,6 @@ export const processMessage = async (
     db,
   } = options;
 
-
   console.log("Processing message with conversation history", {
     messageId: currentMessage.id,
     conversationId: currentMessage.conversationId,
@@ -33,11 +31,11 @@ export const processMessage = async (
   // Convert all messages to UI message format
   const modelMessages = dbMessagesToModelMessages(
     conversationHistory,
-    conversation?.isGroup
-  )
+    conversation?.isGroup,
+  );
 
   console.log("Generated UI messages", {
-    modelMessages
+    modelMessages,
   });
 
   console.log("Generated model messages");

@@ -8,7 +8,7 @@ import {
   users,
 } from "@poppy/db";
 import type { LoopMessageSendRequest } from "@poppy/schemas";
-import { generateId, type ModelMessage, type UIMessage } from "ai";
+import { generateId, type ModelMessage } from "ai";
 import { eq } from "drizzle-orm";
 import { createLoopClient } from "../../clients/loop-message";
 import type { WorkerEnv } from "../../context";
