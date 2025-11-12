@@ -1,8 +1,7 @@
-import { conversations, getDb, messages, parts, users } from "@poppy/db";
 import { env, SELF } from "cloudflare:test";
-import { eq } from "drizzle-orm";
-import { desc } from "drizzle-orm";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { conversations, getDb, messages, parts, users } from "@poppy/db";
+import { desc, eq } from "drizzle-orm";
+import { describe, expect, it, vi } from "vitest";
 
 // Mock the AI client module
 vi.mock("../../clients/ai/openrouter", () => ({
@@ -19,6 +18,16 @@ vi.mock("../../clients/loop-message", () => ({
       success: true,
       message_id: "mock-message-id",
     }),
+  })),
+}));
+
+// Mock the web search tool
+vi.mock("../../tools/web-search", () => ({
+  createWebSearchTool: vi.fn(() => ({
+    type: "tool",
+    description: "Mock web search tool",
+    parameters: {},
+    execute: vi.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -166,13 +175,13 @@ describe("Webhook endpoint", () => {
     expect(allMessages.length).toBeGreaterThanOrEqual(1);
     const inboundMessage = allMessages.find((m) => m.isOutbound === false);
     expect(inboundMessage).toBeDefined();
-    expect(inboundMessage!.userId).toBe(user.id);
+    expect(inboundMessage?.userId).toBe(user.id);
 
     // Check parts were created for the inbound message
     const messageParts = await db
       .select()
       .from(parts)
-      .where(eq(parts.messageId, inboundMessage!.id));
+      .where(eq(parts.messageId, inboundMessage?.id));
     expect(messageParts.length).toBeGreaterThan(0);
     expect(messageParts[0].type).toBe("text");
     expect(messageParts[0].content).toMatchObject({
