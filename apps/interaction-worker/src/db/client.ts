@@ -7,8 +7,11 @@ import type { WorkerEnv } from "../context";
  * @returns Drizzle database instance with all schemas
  */
 export function createDatabaseClient(env: WorkerEnv) {
+  const isTest = process.env.NODE_ENV === "test";
   // Use Hyperdrive connection string for optimized PostgreSQL access
-  return getDb(env.HYPERDRIVE.connectionString);
+  return getDb(
+    isTest ? process.env.DATABASE_URL : env.HYPERDRIVE.connectionString,
+  );
 }
 
 /**
