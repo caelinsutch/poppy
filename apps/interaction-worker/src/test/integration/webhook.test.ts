@@ -5,10 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 
 // Mock the AI client module
 vi.mock("../../clients/ai/openrouter", () => ({
-  createOpenRouterClient: vi.fn(() => ({
-    gemini25: {},
-    gpt4o: {},
-  })),
+  openrouter: vi.fn(() => ({})),
+  gemini25: {},
 }));
 
 // Mock the Loop Message client module
@@ -29,6 +27,12 @@ vi.mock("../../tools/web-search", () => ({
     parameters: {},
     execute: vi.fn().mockResolvedValue([]),
   })),
+  webSearch: {
+    type: "tool",
+    description: "Mock web search tool",
+    parameters: {},
+    execute: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 // Mock the AI SDK functions
@@ -183,7 +187,7 @@ describe("Webhook endpoint", () => {
     const messageParts = await db
       .select()
       .from(parts)
-      .where(eq(parts.messageId, inboundMessage!.id));
+      .where(eq(parts.messageId, inboundMessage?.id));
     expect(messageParts.length).toBeGreaterThan(0);
     expect(messageParts[0].type).toBe("text");
     expect(messageParts[0].content).toMatchObject({

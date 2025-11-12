@@ -1,6 +1,6 @@
 import { generateObject, type ModelMessage } from "ai";
 import z from "zod";
-import { createOpenRouterClient } from "../../clients/ai/openrouter";
+import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import type { ProcessMessageOptions } from "./types";
 
@@ -8,11 +8,9 @@ export const checkShouldRespond = async (
   modelMessages: ModelMessage[],
   options: ProcessMessageOptions,
 ) => {
-  const { conversation, participants, env } = options;
+  const { conversation, participants } = options;
 
   if (!conversation.isGroup) return true;
-
-  const { gemini25 } = createOpenRouterClient(env.OPENROUTER_API_KEY);
 
   const { object } = await generateObject({
     model: gemini25,

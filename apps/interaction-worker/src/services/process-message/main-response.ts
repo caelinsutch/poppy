@@ -1,15 +1,15 @@
 import { generateText, type ModelMessage, stepCountIs } from "ai";
-import { createOpenRouterClient } from "../../clients/ai/openrouter";
+import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import type { ToolTypes } from "../../tools";
-import { createWebSearchTool } from "../../tools/web-search";
+import { webSearch } from "../../tools/web-search";
 import type { ProcessMessageOptions } from "./types";
 
 export const mainResponse = async (
   modelMessages: ModelMessage[],
   options: ProcessMessageOptions,
 ) => {
-  const { conversation, participants, env } = options;
+  const { conversation, participants } = options;
 
   const system = `
   ${basePrompt}
@@ -21,9 +21,6 @@ ${participants.map((participant) => `- ${participant.id}: ${participant.phoneNum
 
 While you may call tools, ALWAYS return your response in text
 `;
-
-  const { gemini25 } = createOpenRouterClient(env.OPENROUTER_API_KEY);
-  const webSearch = createWebSearchTool(env.EXASEARCH_API_KEY);
 
   const { text, usage } = await generateText<ToolTypes>({
     model: gemini25,
