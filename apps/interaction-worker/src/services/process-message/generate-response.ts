@@ -4,7 +4,7 @@ import { basePrompt } from "../../prompts/base";
 import { webSearch } from "../../tools/web-search";
 import type { ProcessMessageOptions } from "./types";
 
-export const mainResponse = async (
+export const generateResponse = async (
   modelMessages: ModelMessage[],
   options: ProcessMessageOptions,
 ) => {
@@ -27,7 +27,7 @@ While you may call tools, ALWAYS return your response in text
     tools: {
       webSearch,
     },
-    stopWhen: stepCountIs(10), // Allow up to 20 steps
+    stopWhen: stepCountIs(10),
   });
 
   const { text, usage } = await agent.generate({
