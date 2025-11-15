@@ -3,7 +3,7 @@ import { dbMessagesToModelMessages } from "@poppy/lib";
 import { desc, eq } from "drizzle-orm";
 import { sendLoopMessage } from "../loop/send-loop-message";
 import { checkShouldRespond } from "./check-should-respond";
-import { mainResponse } from "./main-response";
+import { generateResponse } from "./generate-response";
 import type { ProcessMessageOptions } from "./types";
 
 export const processMessage = async (
@@ -60,7 +60,7 @@ export const processMessage = async (
       text,
       usage,
       messages: aiMessages,
-    } = await mainResponse(modelMessages, options);
+    } = await generateResponse(modelMessages, options);
 
     console.log("Generated AI response", {
       messageId: currentMessage.id,
