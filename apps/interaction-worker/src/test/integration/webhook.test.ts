@@ -47,6 +47,13 @@ vi.mock("ai", async (importOriginal) => {
       text: "Mock AI response",
       usage: { promptTokens: 10, completionTokens: 10 },
     }),
+    ToolLoopAgent: vi.fn().mockImplementation(() => ({
+      generate: vi.fn().mockResolvedValue({
+        text: "Mock AI response from ToolLoopAgent",
+        usage: { promptTokens: 10, completionTokens: 10 },
+      }),
+    })),
+    stepCountIs: vi.fn((count: number) => count),
   };
 });
 
