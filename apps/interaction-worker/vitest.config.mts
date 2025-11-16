@@ -12,6 +12,10 @@ export default defineWorkersProject({
         },
         miniflare: {
           bindings: {
+            EXASEARCH_API_KEY:
+              process.env.EXASEARCH_API_KEY || "mock-exa-api-key",
+            OPENROUTER_API_KEY:
+              process.env.OPENROUTER_API_KEY || "mock-openrouter-api-key",
             NODE_ENV: "test",
             DATABASE_URL:
               process.env.DATABASE_URL ||
