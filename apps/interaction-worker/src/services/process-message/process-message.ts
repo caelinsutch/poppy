@@ -1,8 +1,8 @@
 import { messages } from "@poppy/db";
-import { dbMessagesToModelMessages } from "@poppy/lib";
-import { desc, eq } from "drizzle-orm";
+import { formatAgentConversation } from "@poppy/lib";
+import { and, desc, eq } from "drizzle-orm";
+import { getOrCreateInteractionAgent } from "../agents";
 import { sendLoopMessage } from "../loop/send-loop-message";
-import { checkShouldRespond } from "./check-should-respond";
 import { generateResponse } from "./generate-response";
 import type { ProcessMessageOptions } from "./types";
 
@@ -28,45 +28,76 @@ export const processMessage = async (
     isGroup: conversation?.isGroup || false,
   });
 
-  // Convert all messages to UI message format
-  const modelMessages = dbMessagesToModelMessages(
-    conversationHistory,
-    conversation?.isGroup,
-  );
-
-  console.log("Generated UI messages", {
-    modelMessages,
-  });
-
-  console.log("Generated model messages");
-
   try {
-    const shouldRespond = await checkShouldRespond(modelMessages, options);
+    // Get or create interaction agent for this conversation
+    const interactionAgent = await getOrCreateInteractionAgent(
+      db,
+      conversation.id,
+    );
 
-    if (!shouldRespond) {
-      console.log("Skipping response", {
-        messageId: currentMessage.id,
-        shouldRespond,
-      });
-      return;
-    }
-
-    console.log("Should respond to message", {
-      messageId: currentMessage.id,
-      shouldRespond,
+    console.log("Using interaction agent", {
+      agentId: interactionAgent.id,
+      conversationId: conversation.id,
     });
 
-    const {
-      text,
-      usage,
-      messages: aiMessages,
-    } = await generateResponse(modelMessages, options);
+    // Fetch agent messages for this conversation
+    const agentMessages = await db.query.messages.findMany({
+      where: and(
+        eq(messages.conversationId, conversation.id),
+        eq(messages.toAgentId, interactionAgent.id),
+      ),
+      with: {
+        parts: {
+          orderBy: (parts, { asc }) => [asc(parts.order)],
+        },
+        fromAgent: true,
+      },
+      orderBy: (messages, { asc }) => [asc(messages.createdAt)],
+    });
+
+    // Format agent messages for the conversation formatter
+    const formattedAgentMessages = agentMessages.map((msg: any) => ({
+      fromAgent: msg.fromAgent,
+      toAgent: interactionAgent,
+      message: msg,
+      parts: msg.parts,
+    }));
+
+    // Format conversation in XML structure
+    const formattedConversation = formatAgentConversation({
+      conversationHistory,
+      agentMessages: formattedAgentMessages,
+      currentMessage: {
+        message: currentMessage,
+        parts: currentParts,
+      },
+      isGroup: conversation?.isGroup,
+    });
+
+    console.log("Formatted conversation for agent processing");
+
+    const { messagesToUser, hasUserMessages, usage } = await generateResponse(
+      formattedConversation,
+      {
+        ...options,
+        interactionAgentId: interactionAgent.id,
+      },
+    );
 
     console.log("Generated AI response", {
       messageId: currentMessage.id,
-      response: text,
+      hasUserMessages,
+      messageCount: messagesToUser.length,
       usage,
     });
+
+    // Only send messages if the agent explicitly chose to respond to user
+    if (!hasUserMessages) {
+      console.log("Agent chose not to respond to user", {
+        messageId: currentMessage.id,
+      });
+      return;
+    }
 
     // Don't send if there's newer messages in the conversation
     const recentMessage = await db.query.messages.findMany({
@@ -88,17 +119,21 @@ export const processMessage = async (
       return;
     }
 
-    // Send the message via Loop Message and save to database
-    const sendResult = await sendLoopMessage({
-      text,
-      conversationId: currentMessage.conversationId,
-      aiMessages,
-      db,
-    });
+    // Send all messages to user
+    const loopMessageIds: string[] = [];
+    for (const messageText of messagesToUser) {
+      const sendResult = await sendLoopMessage({
+        text: messageText,
+        conversationId: currentMessage.conversationId,
+        db,
+      });
+      loopMessageIds.push(...sendResult.loopMessageIds);
+    }
 
-    console.log("Successfully processed and sent message", {
-      loopMessageIds: sendResult.loopMessageIds,
-      conversationId: sendResult.conversationId,
+    console.log("Successfully processed and sent messages", {
+      loopMessageIds,
+      conversationId: currentMessage.conversationId,
+      messageCount: messagesToUser.length,
     });
   } catch (error) {
     console.error("Failed to generate AI response", {

@@ -8,7 +8,7 @@ import {
   users,
 } from "@poppy/db";
 import type { LoopMessageSendRequest } from "@poppy/schemas";
-import { generateId, type ModelMessage } from "ai";
+import { generateId } from "ai";
 import { eq } from "drizzle-orm";
 import { loopClient } from "../../clients/loop-message";
 import type { Database } from "../../db/client";
@@ -16,12 +16,11 @@ import type { Database } from "../../db/client";
 export interface SendLoopMessageOptions {
   text: string;
   conversationId: string;
-  aiMessages: ModelMessage[];
   db: Database;
 }
 
 export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
-  const { text, conversationId, aiMessages, db } = options;
+  const { text, conversationId, db } = options;
 
   const byLine = text.split("\n").filter((line) => line.trim());
 
@@ -112,7 +111,6 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     rawPayload: {
       type: "ai_response",
       text,
-      aiMessages,
     },
   };
 
