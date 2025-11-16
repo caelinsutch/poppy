@@ -1,6 +1,6 @@
 import type { InferUITool, UITools } from "ai";
-import type { createWebSearchTool } from "./web-search";
 import type { createSendMessageToAgentTool } from "./send-message-to-agent";
+import type { createWebSearchTool } from "./web-search";
 
 export type ToolTypes = {
   webSearch: ReturnType<typeof createWebSearchTool>;
@@ -9,7 +9,9 @@ export type ToolTypes = {
 
 export type UIToolTypes = {
   webSearch: InferUITool<ReturnType<typeof createWebSearchTool>>;
-  sendMessageToAgent: InferUITool<ReturnType<typeof createSendMessageToAgentTool>>;
+  sendMessageToAgent: InferUITool<
+    ReturnType<typeof createSendMessageToAgentTool>
+  >;
 } & UITools;
 
 export * from "./send-message-to-agent";
