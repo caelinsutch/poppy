@@ -164,37 +164,45 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     })
     .info("Extracting messages to user from tool results", {
       toolResultCount: result.toolResults?.length || 0,
+      stepsCount: result.steps?.length || 0,
     });
 
-  // Check if there are tool results in the result
-  if (result.toolResults && result.toolResults.length > 0) {
-    for (const toolResult of result.toolResults) {
-      logger
-        .withTags({
-          conversationId: conversation.id,
-          interactionAgentId,
-        })
-        .info("Processing tool result", {
-          toolName: toolResult.toolName,
-          hasOutput: !!toolResult.output,
-        });
+  // Extract tool results from steps (where they're actually stored)
+  if (result.steps && result.steps.length > 0) {
+    for (const step of result.steps) {
+      if (step.content && Array.isArray(step.content)) {
+        for (const item of step.content) {
+          if (
+            item.type === "tool-result" &&
+            item.toolName === "send_message_to_user"
+          ) {
+            logger
+              .withTags({
+                conversationId: conversation.id,
+                interactionAgentId,
+              })
+              .info("Processing tool result from step", {
+                toolName: item.toolName,
+                hasOutput: !!item.output,
+              });
 
-      if (toolResult.toolName === "send_message_to_user") {
-        const output = toolResult.output as {
-          type: "send_to_user";
-          content: string;
-        };
-        if (output?.type === "send_to_user" && output.content) {
-          messagesToUser.push(output.content);
-          logger
-            .withTags({
-              conversationId: conversation.id,
-              interactionAgentId,
-            })
-            .info("Found send_message_to_user result", {
-              contentLength: output.content.length,
-              content: output.content.substring(0, 100),
-            });
+            const output = item.output as {
+              type: "send_to_user";
+              content: string;
+            };
+            if (output?.type === "send_to_user" && output.content) {
+              messagesToUser.push(output.content);
+              logger
+                .withTags({
+                  conversationId: conversation.id,
+                  interactionAgentId,
+                })
+                .info("Found send_message_to_user result", {
+                  contentLength: output.content.length,
+                  content: output.content.substring(0, 100),
+                });
+            }
+          }
         }
       }
     }

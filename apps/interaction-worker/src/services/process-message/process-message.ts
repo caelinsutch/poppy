@@ -93,6 +93,7 @@ export const processMessage = async (
       .info("Formatted conversation for agent processing", {
         conversationLength: formattedConversation.length,
         agentMessageCount: formattedAgentMessages.length,
+        formatAgentConversation,
       });
 
     const { messagesToUser, hasUserMessages, usage } = await generateResponse(
