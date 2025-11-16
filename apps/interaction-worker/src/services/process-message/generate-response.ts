@@ -150,6 +150,8 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     .info("Agent generation completed", {
       toolResultCount: result.toolResults?.length || 0,
       usage: result.usage,
+      output: result.output,
+      steps: result.steps,
     });
 
   // Extract messages to user from tool results
