@@ -1,4 +1,9 @@
 import { defineWorkersProject } from "@cloudflare/vitest-pool-workers/config";
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// Load .env file from the interaction-worker directory
+config({ path: resolve(__dirname, ".env") });
 
 export default defineWorkersProject({
   test: {

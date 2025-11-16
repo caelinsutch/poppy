@@ -109,6 +109,9 @@ importers:
       '@poppy/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      dotenv:
+        specifier: ^17.2.2
+        version: 17.2.2
       typescript:
         specifier: 'catalog:'
         version: 5.9.2
