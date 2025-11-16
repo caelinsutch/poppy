@@ -1,4 +1,5 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
+import { logger } from "@poppy/hono-helpers";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
@@ -16,6 +17,17 @@ export const generateResponse = async (
   },
 ) => {
   const { conversation, participants, interactionAgentId, db } = options;
+
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Starting response generation", {
+      isGroup: conversation.isGroup,
+      participantCount: participants.length,
+      conversationLength: formattedConversation.length,
+    });
 
   const system = `
 ${basePrompt}
@@ -83,6 +95,21 @@ This conversation history may have gaps. It may start from the middle of a conve
 ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
 `;
 
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Creating ToolLoopAgent with tools", {
+      tools: [
+        "send_message_to_agent",
+        "send_message_to_user",
+        "wait",
+        "webSearch",
+      ],
+      maxSteps: 10,
+    });
+
   const agent = new ToolLoopAgent({
     model: gemini25,
     instructions: system,
@@ -99,6 +126,13 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     stopWhen: stepCountIs(10),
   });
 
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Calling agent.generate with formatted conversation");
+
   const result = await agent.generate({
     messages: [
       {
@@ -108,12 +142,41 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     ],
   });
 
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Agent generation completed", {
+      toolResultCount: result.toolResults?.length || 0,
+      usage: result.usage,
+    });
+
   // Extract messages to user from tool results
   const messagesToUser: string[] = [];
+
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Extracting messages to user from tool results", {
+      toolResultCount: result.toolResults?.length || 0,
+    });
 
   // Check if there are tool results in the result
   if (result.toolResults && result.toolResults.length > 0) {
     for (const toolResult of result.toolResults) {
+      logger
+        .withTags({
+          conversationId: conversation.id,
+          interactionAgentId,
+        })
+        .info("Processing tool result", {
+          toolName: toolResult.toolName,
+          hasOutput: !!toolResult.output,
+        });
+
       if (toolResult.toolName === "send_message_to_user") {
         const output = toolResult.output as {
           type: "send_to_user";
@@ -121,10 +184,30 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
         };
         if (output?.type === "send_to_user" && output.content) {
           messagesToUser.push(output.content);
+          logger
+            .withTags({
+              conversationId: conversation.id,
+              interactionAgentId,
+            })
+            .info("Found send_message_to_user result", {
+              contentLength: output.content.length,
+              content: output.content.substring(0, 100),
+            });
         }
       }
     }
   }
+
+  logger
+    .withTags({
+      conversationId: conversation.id,
+      interactionAgentId,
+    })
+    .info("Completed response generation", {
+      messagesToUserCount: messagesToUser.length,
+      hasUserMessages: messagesToUser.length > 0,
+      usage: result.usage,
+    });
 
   return {
     usage: result.usage,

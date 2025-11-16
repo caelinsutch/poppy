@@ -1,4 +1,5 @@
 import { messages } from "@poppy/db";
+import { logger } from "@poppy/hono-helpers";
 import { formatAgentConversation } from "@poppy/lib";
 import { and, desc, eq } from "drizzle-orm";
 import { getOrCreateInteractionAgent } from "../agents";
@@ -19,14 +20,17 @@ export const processMessage = async (
     db,
   } = options;
 
-  console.log("Processing message with conversation history", {
-    messageId: currentMessage.id,
-    conversationId: currentMessage.conversationId,
-    partsCount: currentParts.length,
-    historyCount: conversationHistory.length,
-    participantCount: participants.length,
-    isGroup: conversation?.isGroup || false,
-  });
+  logger
+    .withTags({
+      messageId: currentMessage.id,
+      conversationId: currentMessage.conversationId,
+    })
+    .info("Processing message with conversation history", {
+      partsCount: currentParts.length,
+      historyCount: conversationHistory.length,
+      participantCount: participants.length,
+      isGroup: conversation?.isGroup || false,
+    });
 
   try {
     // Get or create interaction agent for this conversation
@@ -35,10 +39,16 @@ export const processMessage = async (
       conversation.id,
     );
 
-    console.log("Using interaction agent", {
-      agentId: interactionAgent.id,
-      conversationId: conversation.id,
-    });
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: conversation.id,
+        agentId: interactionAgent.id,
+      })
+      .info("Using interaction agent", {
+        agentType: interactionAgent.agentType,
+        agentStatus: interactionAgent.status,
+      });
 
     // Fetch agent messages for this conversation
     const agentMessages = await db.query.messages.findMany({
@@ -74,7 +84,16 @@ export const processMessage = async (
       isGroup: conversation?.isGroup,
     });
 
-    console.log("Formatted conversation for agent processing");
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: conversation.id,
+        agentId: interactionAgent.id,
+      })
+      .info("Formatted conversation for agent processing", {
+        conversationLength: formattedConversation.length,
+        agentMessageCount: formattedAgentMessages.length,
+      });
 
     const { messagesToUser, hasUserMessages, usage } = await generateResponse(
       formattedConversation,
@@ -84,18 +103,27 @@ export const processMessage = async (
       },
     );
 
-    console.log("Generated AI response", {
-      messageId: currentMessage.id,
-      hasUserMessages,
-      messageCount: messagesToUser.length,
-      usage,
-    });
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: conversation.id,
+        agentId: interactionAgent.id,
+      })
+      .info("Generated AI response", {
+        hasUserMessages,
+        messageCount: messagesToUser.length,
+        usage,
+      });
 
     // Only send messages if the agent explicitly chose to respond to user
     if (!hasUserMessages) {
-      console.log("Agent chose not to respond to user", {
-        messageId: currentMessage.id,
-      });
+      logger
+        .withTags({
+          messageId: currentMessage.id,
+          conversationId: conversation.id,
+          agentId: interactionAgent.id,
+        })
+        .info("Agent chose not to respond to user");
       return;
     }
 
@@ -109,15 +137,29 @@ export const processMessage = async (
     const firstOutbound = recentMessage.find((m: any) => m.isOutbound);
 
     if (firstOutbound && firstOutbound.createdAt > currentMessage.createdAt) {
-      console.log(
-        "Skipping response because there are newer messages in the conversation",
-        {
+      logger
+        .withTags({
           messageId: currentMessage.id,
+          conversationId: conversation.id,
+          agentId: interactionAgent.id,
+        })
+        .info("Skipping response due to newer outbound message", {
           recentMessageId: firstOutbound.id,
-        },
-      );
+          recentMessageTime: firstOutbound.createdAt,
+          currentMessageTime: currentMessage.createdAt,
+        });
       return;
     }
+
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: conversation.id,
+        agentId: interactionAgent.id,
+      })
+      .info("Sending messages to user", {
+        messageCount: messagesToUser.length,
+      });
 
     // Send all messages to user
     const loopMessageIds: string[] = [];
@@ -130,16 +172,25 @@ export const processMessage = async (
       loopMessageIds.push(...sendResult.loopMessageIds);
     }
 
-    console.log("Successfully processed and sent messages", {
-      loopMessageIds,
-      conversationId: currentMessage.conversationId,
-      messageCount: messagesToUser.length,
-    });
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: conversation.id,
+        agentId: interactionAgent.id,
+      })
+      .info("Successfully processed and sent messages", {
+        loopMessageIds,
+        messageCount: messagesToUser.length,
+      });
   } catch (error) {
-    console.error("Failed to generate AI response", {
-      messageId: currentMessage.id,
-      error,
-    });
+    logger
+      .withTags({
+        messageId: currentMessage.id,
+        conversationId: currentMessage.conversationId,
+      })
+      .error("Failed to generate AI response", {
+        error,
+      });
     throw error;
   }
 };
