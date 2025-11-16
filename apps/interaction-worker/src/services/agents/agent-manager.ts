@@ -35,9 +35,7 @@ export const getOrCreateInteractionAgent = async (
     return existingAgent;
   }
 
-  logger
-    .withTags({ conversationId })
-    .info("Creating new interaction agent");
+  logger.withTags({ conversationId }).info("Creating new interaction agent");
 
   // Create a new interaction agent
   const [newAgent] = await db
@@ -142,11 +140,9 @@ export const findExecutionAgentByPurpose = async (
     ),
   });
 
-  logger
-    .withTags({ parentInteractionAgentId })
-    .info("Found child agents", {
-      childAgentCount: childAgents.length,
-    });
+  logger.withTags({ parentInteractionAgentId }).info("Found child agents", {
+    childAgentCount: childAgents.length,
+  });
 
   // Find agent where purpose contains the keyword
   const matchingAgent = childAgents.find((agent) =>
@@ -201,13 +197,11 @@ export const updateAgentStatus = async (
     errorMessage?: string;
   },
 ): Promise<Agent> => {
-  logger
-    .withTags({ agentId })
-    .info("Updating agent status", {
-      newStatus: status,
-      hasResult: !!options?.result,
-      hasError: !!options?.errorMessage,
-    });
+  logger.withTags({ agentId }).info("Updating agent status", {
+    newStatus: status,
+    hasResult: !!options?.result,
+    hasError: !!options?.errorMessage,
+  });
 
   const updateData: Partial<Agent> = {
     status,
@@ -231,12 +225,10 @@ export const updateAgentStatus = async (
     .where(eq(agents.id, agentId))
     .returning();
 
-  logger
-    .withTags({ agentId })
-    .info("Updated agent status", {
-      status: updatedAgent.status,
-      completedAt: updatedAgent.completedAt,
-    });
+  logger.withTags({ agentId }).info("Updated agent status", {
+    status: updatedAgent.status,
+    completedAt: updatedAgent.completedAt,
+  });
 
   return updatedAgent;
 };

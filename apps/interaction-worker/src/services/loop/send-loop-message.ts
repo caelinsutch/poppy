@@ -23,20 +23,16 @@ export interface SendLoopMessageOptions {
 export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
   const { text, conversationId, db } = options;
 
-  logger
-    .withTags({ conversationId })
-    .info("Sending Loop message", {
-      textLength: text.length,
-      textPreview: text.substring(0, 100),
-    });
+  logger.withTags({ conversationId }).info("Sending Loop message", {
+    textLength: text.length,
+    textPreview: text.substring(0, 100),
+  });
 
   const byLine = text.split("\n").filter((line) => line.trim());
 
-  logger
-    .withTags({ conversationId })
-    .info("Split message into lines", {
-      lineCount: byLine.length,
-    });
+  logger.withTags({ conversationId }).info("Split message into lines", {
+    lineCount: byLine.length,
+  });
 
   // Fetch conversation with participants in a single query
   const result = await db
@@ -53,9 +49,7 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
     .where(eq(conversations.id, conversationId));
 
   if (!result.length || !result[0].conversation) {
-    logger
-      .withTags({ conversationId })
-      .error("Conversation not found");
+    logger.withTags({ conversationId }).error("Conversation not found");
     throw new Error(`Conversation not found: ${conversationId}`);
   }
 
@@ -82,11 +76,9 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
       text,
       sender_name: conversation.sender,
     };
-    logger
-      .withTags({ conversationId })
-      .info("Sending as group message", {
-        groupId: conversation.loopMessageGroupId,
-      });
+    logger.withTags({ conversationId }).info("Sending as group message", {
+      groupId: conversation.loopMessageGroupId,
+    });
   } else {
     // Individual message - find the recipient (participant who is NOT the sender/bot)
     const recipient = participants.find((p) => p !== conversation.sender);
@@ -108,22 +100,18 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
       text,
       sender_name: conversation.sender,
     };
-    logger
-      .withTags({ conversationId })
-      .info("Sending as individual message", {
-        recipient,
-      });
+    logger.withTags({ conversationId }).info("Sending as individual message", {
+      recipient,
+    });
   }
 
   // Send each line as a separate message
   const loopMessageIds: string[] = [];
   for (const line of byLine) {
-    logger
-      .withTags({ conversationId })
-      .info("Sending line via Loop", {
-        lineLength: line.length,
-        linePreview: line.substring(0, 50),
-      });
+    logger.withTags({ conversationId }).info("Sending line via Loop", {
+      lineLength: line.length,
+      linePreview: line.substring(0, 50),
+    });
 
     const response = await loopClient.sendMessage({
       ...sendRequest,
@@ -138,22 +126,18 @@ export const sendLoopMessage = async (options: SendLoopMessageOptions) => {
           messageId: response.message_id,
         });
     } else {
-      logger
-        .withTags({ conversationId })
-        .error("Failed to send Loop message", {
-          error: response.error,
-          linePreview: line.substring(0, 50),
-        });
+      logger.withTags({ conversationId }).error("Failed to send Loop message", {
+        error: response.error,
+        linePreview: line.substring(0, 50),
+      });
       throw new Error(`Failed to send Loop message: ${response.error}`);
     }
   }
 
-  logger
-    .withTags({ conversationId })
-    .info("Sent all Loop messages", {
-      loopMessageIds,
-      lineCount: byLine.length,
-    });
+  logger.withTags({ conversationId }).info("Sent all Loop messages", {
+    loopMessageIds,
+    lineCount: byLine.length,
+  });
 
   // Save the sent message to the database
   const messageId = generateId();
