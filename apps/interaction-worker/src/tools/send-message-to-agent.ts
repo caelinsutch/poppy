@@ -1,8 +1,7 @@
-import { tool } from "ai";
-import { z } from "zod";
-import type { getDb } from "@poppy/db";
+import type { Agent, getDb } from "@poppy/db";
 import { messages as messagesTable } from "@poppy/db";
-import { generateId } from "ai";
+import { generateId, tool } from "ai";
+import { z } from "zod";
 import {
   createExecutionAgent,
   findExecutionAgentByPurpose,
@@ -39,7 +38,7 @@ The agent has tools for a wide variety of tasks. Use this tool often.
         ),
     }),
     execute: async ({ message, agent_name, purpose }) => {
-      let executionAgent;
+      let executionAgent: Agent | undefined;
 
       // If agent_name provided, find existing agent
       if (agent_name) {

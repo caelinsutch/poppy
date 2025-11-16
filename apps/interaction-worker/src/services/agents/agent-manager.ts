@@ -1,7 +1,6 @@
-import type { Agent, Message } from "@poppy/db";
+import type { Agent, getDb, Message } from "@poppy/db";
 import { agents, messages } from "@poppy/db";
 import { and, eq } from "drizzle-orm";
-import type { getDb } from "@poppy/db";
 
 type Database = ReturnType<typeof getDb>;
 

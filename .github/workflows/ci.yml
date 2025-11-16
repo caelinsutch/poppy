@@ -102,6 +102,8 @@ jobs:
         run: pnpm --filter @poppy/db db:push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/poppy_test
+          EXASEARCH_API_KEY: mock-exa-api-key
+          OPENROUTER_API_KEY: mock-openrouter-api-key
 
       - name: Run tests
         run: pnpm test
