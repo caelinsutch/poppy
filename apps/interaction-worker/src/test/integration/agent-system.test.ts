@@ -9,7 +9,7 @@ import {
 } from "@poppy/db";
 import { formatAgentConversation } from "@poppy/lib";
 import { and, desc, eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createExecutionAgent,
   findExecutionAgentByPurpose,
@@ -344,13 +344,13 @@ describe("Agent System E2E Tests", () => {
         conversationId,
       );
 
-      const agent1 = await createExecutionAgent(db, {
+      const _agent1 = await createExecutionAgent(db, {
         parentInteractionAgentId: interactionAgent.id,
         conversationId,
         purpose: "weather_checker",
       });
 
-      const agent2 = await createExecutionAgent(db, {
+      const _agent2 = await createExecutionAgent(db, {
         parentInteractionAgentId: interactionAgent.id,
         conversationId,
         purpose: "calendar_manager",
@@ -439,167 +439,159 @@ describe("Agent System E2E Tests", () => {
   });
 
   describe("End-to-End Message Processing", () => {
-    it(
-      "should process incoming message through full agent system with real AI",
-      async () => {
-        const testPhoneNumber = `+1${Date.now()}`;
-        const validPayload = {
-          alert_type: "message_inbound",
-          message_id: `test-msg-${Date.now()}`,
-          webhook_id: "test-webhook-id",
-          recipient: testPhoneNumber,
-          text: "What is 2+2?",
-          sender_name: "+15555551234",
-          thread_id: "test-thread-e2e",
-          delivery_type: "imessage" as const,
-        };
+    it("should process incoming message through full agent system with real AI", async () => {
+      const testPhoneNumber = `+1${Date.now()}`;
+      const validPayload = {
+        alert_type: "message_inbound",
+        message_id: `test-msg-${Date.now()}`,
+        webhook_id: "test-webhook-id",
+        recipient: testPhoneNumber,
+        text: "What is 2+2?",
+        sender_name: "+15555551234",
+        thread_id: "test-thread-e2e",
+        delivery_type: "imessage" as const,
+      };
 
-        // Send the webhook
-        const response = await SELF.fetch("https://example.com/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(validPayload),
-        });
+      // Send the webhook
+      const response = await SELF.fetch("https://example.com/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validPayload),
+      });
 
-        expect(response.status).toBe(200);
+      expect(response.status).toBe(200);
 
-        // Wait for debounce + AI processing
-        await new Promise((resolve) => setTimeout(resolve, 8000));
+      // Wait for debounce + AI processing
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
-        // Verify interaction agent was created
-        const allConversations = await db
+      // Verify interaction agent was created
+      const allConversations = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.sender, validPayload.sender_name))
+        .orderBy(desc(conversations.createdAt));
+
+      expect(allConversations.length).toBeGreaterThan(0);
+      const conversation = allConversations[0];
+
+      const interactionAgents = await db
+        .select()
+        .from(agents)
+        .where(
+          and(
+            eq(agents.conversationId, conversation.id),
+            eq(agents.agentType, "interaction"),
+          ),
+        );
+
+      expect(interactionAgents.length).toBeGreaterThan(0);
+      const interactionAgent = interactionAgents[0];
+      expect(interactionAgent.status).toBe("active");
+      expect(interactionAgent.purpose).toBe("conversation_handler");
+
+      // Verify messages were stored
+      const allMessages = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.conversationId, conversation.id))
+        .orderBy(desc(messagesTable.createdAt));
+
+      expect(allMessages.length).toBeGreaterThanOrEqual(1);
+
+      // There should be at least the inbound message
+      const inboundMessage = allMessages.find((m) => m.isOutbound === false);
+      expect(inboundMessage).toBeDefined();
+
+      // Check if AI responded (there should be an outbound message)
+      const outboundMessages = allMessages.filter((m) => m.isOutbound);
+      if (outboundMessages.length > 0) {
+        // Verify the outbound message has parts
+        const outboundParts = await db
           .select()
-          .from(conversations)
-          .where(eq(conversations.sender, validPayload.sender_name))
-          .orderBy(desc(conversations.createdAt));
+          .from(parts)
+          .where(eq(parts.messageId, outboundMessages[0].id));
 
-        expect(allConversations.length).toBeGreaterThan(0);
-        const conversation = allConversations[0];
+        expect(outboundParts.length).toBeGreaterThan(0);
+        expect(outboundParts[0].type).toBe("text");
+        // The AI should have responded with something about 2+2=4
+        const responseText = (outboundParts[0].content as any).text;
+        expect(responseText).toBeDefined();
+        expect(responseText.length).toBeGreaterThan(0);
+      }
+    }, 15000);
 
-        const interactionAgents = await db
-          .select()
-          .from(agents)
-          .where(
-            and(
-              eq(agents.conversationId, conversation.id),
-              eq(agents.agentType, "interaction"),
-            ),
-          );
+    it("should handle conversation history correctly", async () => {
+      const testPhoneNumber = `+1${Date.now()}`;
 
-        expect(interactionAgents.length).toBeGreaterThan(0);
-        const interactionAgent = interactionAgents[0];
-        expect(interactionAgent.status).toBe("active");
-        expect(interactionAgent.purpose).toBe("conversation_handler");
+      // Send first message
+      const firstPayload = {
+        alert_type: "message_inbound",
+        message_id: `test-msg-1-${Date.now()}`,
+        webhook_id: "test-webhook-id-1",
+        recipient: testPhoneNumber,
+        text: "My name is Alice",
+        sender_name: "+15555551234",
+        thread_id: `test-thread-history-${Date.now()}`,
+        delivery_type: "imessage" as const,
+      };
 
-        // Verify messages were stored
-        const allMessages = await db
-          .select()
-          .from(messagesTable)
-          .where(eq(messagesTable.conversationId, conversation.id))
-          .orderBy(desc(messagesTable.createdAt));
+      await SELF.fetch("https://example.com/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(firstPayload),
+      });
 
-        expect(allMessages.length).toBeGreaterThanOrEqual(1);
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
-        // There should be at least the inbound message
-        const inboundMessage = allMessages.find((m) => m.isOutbound === false);
-        expect(inboundMessage).toBeDefined();
+      // Send second message asking to recall the name
+      const secondPayload = {
+        ...firstPayload,
+        message_id: `test-msg-2-${Date.now()}`,
+        webhook_id: "test-webhook-id-2",
+        text: "What is my name?",
+      };
 
-        // Check if AI responded (there should be an outbound message)
-        const outboundMessages = allMessages.filter((m) => m.isOutbound);
-        if (outboundMessages.length > 0) {
-          // Verify the outbound message has parts
-          const outboundParts = await db
-            .select()
-            .from(parts)
-            .where(eq(parts.messageId, outboundMessages[0].id));
+      await SELF.fetch("https://example.com/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(secondPayload),
+      });
 
-          expect(outboundParts.length).toBeGreaterThan(0);
-          expect(outboundParts[0].type).toBe("text");
-          // The AI should have responded with something about 2+2=4
-          const responseText = (outboundParts[0].content as any).text;
-          expect(responseText).toBeDefined();
-          expect(responseText.length).toBeGreaterThan(0);
-        }
-      },
-      15000,
-    );
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    it(
-      "should handle conversation history correctly",
-      async () => {
-        const testPhoneNumber = `+1${Date.now()}`;
+      // Verify conversation was maintained
+      const allConversations = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.sender, firstPayload.sender_name))
+        .orderBy(desc(conversations.createdAt));
 
-        // Send first message
-        const firstPayload = {
-          alert_type: "message_inbound",
-          message_id: `test-msg-1-${Date.now()}`,
-          webhook_id: "test-webhook-id-1",
-          recipient: testPhoneNumber,
-          text: "My name is Alice",
-          sender_name: "+15555551234",
-          thread_id: `test-thread-history-${Date.now()}`,
-          delivery_type: "imessage" as const,
-        };
+      const conversation = allConversations[0];
 
-        await SELF.fetch("https://example.com/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(firstPayload),
-        });
+      const allMessages = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.conversationId, conversation.id))
+        .orderBy(messagesTable.createdAt);
 
-        await new Promise((resolve) => setTimeout(resolve, 8000));
+      // Should have at least 2 inbound messages
+      const inboundMessages = allMessages.filter((m) => !m.isOutbound);
+      expect(inboundMessages.length).toBeGreaterThanOrEqual(2);
 
-        // Send second message asking to recall the name
-        const secondPayload = {
-          ...firstPayload,
-          message_id: `test-msg-2-${Date.now()}`,
-          webhook_id: "test-webhook-id-2",
-          text: "What is my name?",
-        };
+      // The same interaction agent should have been reused
+      const interactionAgents = await db
+        .select()
+        .from(agents)
+        .where(
+          and(
+            eq(agents.conversationId, conversation.id),
+            eq(agents.agentType, "interaction"),
+          ),
+        );
 
-        await SELF.fetch("https://example.com/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(secondPayload),
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 8000));
-
-        // Verify conversation was maintained
-        const allConversations = await db
-          .select()
-          .from(conversations)
-          .where(eq(conversations.sender, firstPayload.sender_name))
-          .orderBy(desc(conversations.createdAt));
-
-        const conversation = allConversations[0];
-
-        const allMessages = await db
-          .select()
-          .from(messagesTable)
-          .where(eq(messagesTable.conversationId, conversation.id))
-          .orderBy(messagesTable.createdAt);
-
-        // Should have at least 2 inbound messages
-        const inboundMessages = allMessages.filter((m) => !m.isOutbound);
-        expect(inboundMessages.length).toBeGreaterThanOrEqual(2);
-
-        // The same interaction agent should have been reused
-        const interactionAgents = await db
-          .select()
-          .from(agents)
-          .where(
-            and(
-              eq(agents.conversationId, conversation.id),
-              eq(agents.agentType, "interaction"),
-            ),
-          );
-
-        expect(interactionAgents.length).toBe(1); // Only one interaction agent per conversation
-      },
-      20000,
-    );
+      expect(interactionAgents.length).toBe(1); // Only one interaction agent per conversation
+    }, 20000);
   });
 });
