@@ -1,5 +1,6 @@
 import type { Agent, getDb } from "@poppy/db";
 import { messages as messagesTable } from "@poppy/db";
+import { logger } from "@poppy/hono-helpers";
 import { generateId, tool } from "ai";
 import { z } from "zod";
 import {
@@ -38,10 +39,30 @@ The agent has tools for a wide variety of tasks. Use this tool often.
         ),
     }),
     execute: async ({ message, agent_name, purpose }) => {
+      logger
+        .withTags({
+          conversationId,
+          interactionAgentId,
+        })
+        .info("send_message_to_agent tool called", {
+          messageLength: message.length,
+          agent_name,
+          purpose,
+        });
+
       let executionAgent: Agent | undefined;
 
       // If agent_name provided, find existing agent
       if (agent_name) {
+        logger
+          .withTags({
+            conversationId,
+            interactionAgentId,
+          })
+          .info("Looking for existing agent", {
+            agent_name,
+          });
+
         executionAgent = await findExecutionAgentByPurpose(
           db,
           interactionAgentId,
@@ -51,12 +72,31 @@ The agent has tools for a wide variety of tasks. Use this tool often.
 
       // Create new agent if not found
       if (!executionAgent) {
+        logger
+          .withTags({
+            conversationId,
+            interactionAgentId,
+          })
+          .info("Creating new execution agent", {
+            purpose: purpose || agent_name || "task_executor",
+          });
+
         executionAgent = await createExecutionAgent(db, {
           parentInteractionAgentId: interactionAgentId,
           conversationId,
           purpose: purpose || agent_name || "task_executor",
         });
       }
+
+      logger
+        .withTags({
+          conversationId,
+          interactionAgentId,
+          executionAgentId: executionAgent.id,
+        })
+        .info("Recording task assignment message", {
+          messagePrev: message.substring(0, 100),
+        });
 
       // Record the message in the messages table
       await db.insert(messagesTable).values({
@@ -78,6 +118,16 @@ The agent has tools for a wide variety of tasks. Use this tool often.
 
       // TODO: Trigger execution agent processing
       // This would enqueue a job to process the task
+
+      logger
+        .withTags({
+          conversationId,
+          interactionAgentId,
+          executionAgentId: executionAgent.id,
+        })
+        .info("Task assigned to execution agent", {
+          purpose: executionAgent.purpose,
+        });
 
       return `Task assigned to ${executionAgent.purpose}. Agent will report back when complete.`;
     },

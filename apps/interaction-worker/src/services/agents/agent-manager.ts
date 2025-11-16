@@ -1,5 +1,6 @@
 import type { Agent, getDb, Message } from "@poppy/db";
 import { agents, messages } from "@poppy/db";
+import { logger } from "@poppy/hono-helpers";
 import { and, eq } from "drizzle-orm";
 
 type Database = ReturnType<typeof getDb>;
@@ -11,6 +12,10 @@ export const getOrCreateInteractionAgent = async (
   db: Database,
   conversationId: string,
 ): Promise<Agent> => {
+  logger
+    .withTags({ conversationId })
+    .info("Getting or creating interaction agent");
+
   // Try to find an existing active interaction agent
   const existingAgent = await db.query.agents.findFirst({
     where: and(
@@ -21,8 +26,18 @@ export const getOrCreateInteractionAgent = async (
   });
 
   if (existingAgent) {
+    logger
+      .withTags({ conversationId, agentId: existingAgent.id })
+      .info("Found existing interaction agent", {
+        agentStatus: existingAgent.status,
+        createdAt: existingAgent.createdAt,
+      });
     return existingAgent;
   }
+
+  logger
+    .withTags({ conversationId })
+    .info("Creating new interaction agent");
 
   // Create a new interaction agent
   const [newAgent] = await db
@@ -34,6 +49,13 @@ export const getOrCreateInteractionAgent = async (
       status: "active",
     })
     .returning();
+
+  logger
+    .withTags({ conversationId, agentId: newAgent.id })
+    .info("Created new interaction agent", {
+      agentType: newAgent.agentType,
+      purpose: newAgent.purpose,
+    });
 
   return newAgent;
 };
@@ -59,6 +81,17 @@ export const createExecutionAgent = async (
     taskRunId,
   } = options;
 
+  logger
+    .withTags({
+      conversationId,
+      parentInteractionAgentId,
+    })
+    .info("Creating execution agent", {
+      purpose,
+      taskId,
+      taskRunId,
+    });
+
   const [executionAgent] = await db
     .insert(agents)
     .values({
@@ -72,6 +105,17 @@ export const createExecutionAgent = async (
     })
     .returning();
 
+  logger
+    .withTags({
+      conversationId,
+      parentInteractionAgentId,
+      agentId: executionAgent.id,
+    })
+    .info("Created execution agent", {
+      purpose: executionAgent.purpose,
+      agentType: executionAgent.agentType,
+    });
+
   return executionAgent;
 };
 
@@ -83,6 +127,12 @@ export const findExecutionAgentByPurpose = async (
   parentInteractionAgentId: string,
   purposeKeyword: string,
 ): Promise<Agent | undefined> => {
+  logger
+    .withTags({ parentInteractionAgentId })
+    .info("Finding execution agent by purpose", {
+      purposeKeyword,
+    });
+
   // Find active execution agents for this interaction agent
   const childAgents = await db.query.agents.findMany({
     where: and(
@@ -92,10 +142,33 @@ export const findExecutionAgentByPurpose = async (
     ),
   });
 
+  logger
+    .withTags({ parentInteractionAgentId })
+    .info("Found child agents", {
+      childAgentCount: childAgents.length,
+    });
+
   // Find agent where purpose contains the keyword
   const matchingAgent = childAgents.find((agent) =>
     agent.purpose?.toLowerCase().includes(purposeKeyword.toLowerCase()),
   );
+
+  if (matchingAgent) {
+    logger
+      .withTags({
+        parentInteractionAgentId,
+        agentId: matchingAgent.id,
+      })
+      .info("Found matching execution agent", {
+        purpose: matchingAgent.purpose,
+      });
+  } else {
+    logger
+      .withTags({ parentInteractionAgentId })
+      .info("No matching execution agent found", {
+        purposeKeyword,
+      });
+  }
 
   return matchingAgent;
 };
@@ -128,6 +201,14 @@ export const updateAgentStatus = async (
     errorMessage?: string;
   },
 ): Promise<Agent> => {
+  logger
+    .withTags({ agentId })
+    .info("Updating agent status", {
+      newStatus: status,
+      hasResult: !!options?.result,
+      hasError: !!options?.errorMessage,
+    });
+
   const updateData: Partial<Agent> = {
     status,
   };
@@ -149,6 +230,13 @@ export const updateAgentStatus = async (
     .set(updateData)
     .where(eq(agents.id, agentId))
     .returning();
+
+  logger
+    .withTags({ agentId })
+    .info("Updated agent status", {
+      status: updatedAgent.status,
+      completedAt: updatedAgent.completedAt,
+    });
 
   return updatedAgent;
 };
