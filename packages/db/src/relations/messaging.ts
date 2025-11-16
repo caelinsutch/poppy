@@ -1,4 +1,5 @@
 import { relations } from "drizzle-orm";
+import { agents } from "../tables/agents";
 import {
   conversationParticipants,
   conversations,
@@ -35,6 +36,16 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
   user: one(users, {
     fields: [messages.userId],
     references: [users.id],
+  }),
+  fromAgent: one(agents, {
+    fields: [messages.fromAgentId],
+    references: [agents.id],
+    relationName: "fromAgent",
+  }),
+  toAgent: one(agents, {
+    fields: [messages.toAgentId],
+    references: [agents.id],
+    relationName: "toAgent",
   }),
   parts: many(parts),
   triggeredEvents: many(taskEvents, { relationName: "triggerMessage" }),

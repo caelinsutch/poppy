@@ -11,6 +11,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import { agentMessageTypeEnum } from "./enums";
 import { users } from "./users";
 
 export const conversations = pgTable("conversations", {
@@ -54,6 +55,12 @@ export const messages = pgTable(
       .notNull(),
     userId: uuid("user_id").references(() => users.id), // Optional if not group message
     isOutbound: boolean("is_outbound").notNull().default(false),
+
+    // Agent communication fields (relations defined in relations file)
+    fromAgentId: uuid("from_agent_id"),
+    toAgentId: uuid("to_agent_id"),
+    agentMessageType: agentMessageTypeEnum("agent_message_type"), // Type of agent message
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     rawPayload: jsonb("raw_payload").notNull(),
   },
@@ -62,6 +69,8 @@ export const messages = pgTable(
     conversationIdx: index("messages_conversation_idx").on(
       table.conversationId,
     ),
+    fromAgentIdx: index("messages_from_agent_idx").on(table.fromAgentId),
+    toAgentIdx: index("messages_to_agent_idx").on(table.toAgentId),
   }),
 );
 
