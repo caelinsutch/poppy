@@ -8,7 +8,7 @@ import * as schema from "./schema";
  * @returns Drizzle database instance
  */
 export function getDb(connectionString?: string) {
-  const connStr = connectionString || process.env.DATABASE_URL;
+  const connStr = connectionString;
 
   if (!connStr) {
     throw new Error("DATABASE_URL is not set");
