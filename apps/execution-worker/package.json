@@ -4,6 +4,12 @@
   "version": "0.0.0",
   "sideEffects": false,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
   "scripts": {
     "dev": "run-wrangler-dev --env staging",
     "dev:production": "run-wrangler-dev --env production",

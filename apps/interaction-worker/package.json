@@ -19,6 +19,7 @@
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "@poppy/clients": "workspace:*",
     "@poppy/db": "workspace:*",
+    "@poppy/execution-worker": "workspace:*",
     "@poppy/hono-helpers": "workspace:*",
     "@poppy/lib": "workspace:*",
     "@poppy/schemas": "workspace:*",

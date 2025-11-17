@@ -3,6 +3,7 @@ import { messages as messagesTable } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { generateId, tool } from "ai";
 import { z } from "zod";
+import type { WorkerEnv } from "../context";
 import {
   createExecutionAgent,
   findExecutionAgentByPurpose,
@@ -12,6 +13,7 @@ type Database = ReturnType<typeof getDb>;
 
 export const createSendMessageToAgentTool = (
   db: Database,
+  env: WorkerEnv,
   interactionAgentId: string,
   conversationId: string,
 ) => {
@@ -112,24 +114,69 @@ The agent has tools for a wide variety of tasks. Use this tool often.
         },
       });
 
-      // Also store the message content as a part
-      // Note: This will need to be updated when we properly handle parts
-      // For now, return a confirmation
-
-      // TODO: Trigger execution agent processing
-      // This would enqueue a job to process the task
-
+      // Call execution-worker via RPC to execute the task
       logger
         .withTags({
           conversationId,
           interactionAgentId,
           executionAgentId: executionAgent.id,
         })
-        .info("Task assigned to execution agent", {
+        .info("Calling execution-worker via RPC", {
           purpose: executionAgent.purpose,
         });
 
-      return `Task assigned to ${executionAgent.purpose}. Agent will report back when complete.`;
+      try {
+        // Get the Durable Object stub for this execution agent
+        const id = env.EXECUTION_WORKER.EXECUTION_AGENT.idFromName(
+          executionAgent.id,
+        );
+        const stub = env.EXECUTION_WORKER.EXECUTION_AGENT.get(id) as any;
+
+        // Call the executeTask method via RPC
+        const result = (await stub.executeTask({
+          agentId: executionAgent.id,
+          conversationId,
+          taskDescription: message,
+        })) as { success: boolean; result?: unknown; error?: string };
+
+        logger
+          .withTags({
+            conversationId,
+            interactionAgentId,
+            executionAgentId: executionAgent.id,
+          })
+          .info("Execution-worker RPC call completed", {
+            success: result.success,
+          });
+
+        if (result.success) {
+          // Extract the output from the result
+          const output =
+            typeof result.result === "object" &&
+            result.result !== null &&
+            "output" in result.result
+              ? (result.result as { output: string }).output
+              : JSON.stringify(result.result);
+
+          return `Task completed by ${executionAgent.purpose}. Result: ${output}`;
+        }
+
+        return `Task execution failed: ${result.error}`;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger
+          .withTags({
+            conversationId,
+            interactionAgentId,
+            executionAgentId: executionAgent.id,
+          })
+          .error("Failed to call execution-worker via RPC", {
+            error: errorMessage,
+          });
+
+        return `Task execution failed: ${errorMessage}`;
+      }
     },
   });
 };
