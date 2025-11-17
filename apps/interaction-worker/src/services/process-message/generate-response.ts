@@ -116,7 +116,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     tools: {
       send_message_to_agent: createSendMessageToAgentTool(
         db,
-        env,
         interactionAgentId,
         conversation.id,
       ),

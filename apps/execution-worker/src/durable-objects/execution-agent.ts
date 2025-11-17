@@ -23,6 +23,15 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   ): Promise<{ success: boolean; result?: unknown; error?: string }> {
     // Check if already executing to prevent concurrent runs
     if (this.state.isExecuting) {
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .warn("ExecutionAgent: Attempted concurrent execution", {
+          taskDescription: input.taskDescription.substring(0, 100),
+        });
+
       return {
         success: false,
         error: "Agent is already executing a task",
@@ -37,21 +46,69 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
         conversationId: input.conversationId,
       })
       .info("ExecutionAgent: Starting task execution", {
-        taskDescription: input.taskDescription,
+        taskDescription: input.taskDescription.substring(0, 200),
+        taskLength: input.taskDescription.length,
       });
 
     try {
       const db = getDb(this.env.HYPERDRIVE.connectionString);
+
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Updating agent status to active");
+
       await updateAgentStatus(db, input.agentId, "active");
 
       // Get agent details from database
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Fetching agent record from database");
+
       const agentRecord = await db.query.agents.findFirst({
         where: (agents, { eq }) => eq(agents.id, input.agentId),
       });
 
+      if (!agentRecord) {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .error("ExecutionAgent: Agent record not found");
+
+        throw new Error("Agent record not found");
+      }
+
       const agentName = agentRecord?.purpose || "execution_agent";
 
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Agent record retrieved", {
+          agentName,
+          purpose: agentRecord.purpose,
+          status: agentRecord.status,
+        });
+
       // Create agentic loop with tools
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Creating ToolLoopAgent", {
+          availableTools: ["research", "wait"],
+          maxSteps: 20,
+        });
+
       const agent = new ToolLoopAgent({
         model: gemini25(this.env.OPENROUTER_API_KEY),
         instructions: `You are the assistant of Poke by the Interaction Company of California. You are the "execution engine" of Poke, helping complete tasks for Poke, while Poke talks to the user. Your job is to execute and accomplish a goal, and you do not have direct access to the user.
@@ -89,6 +146,13 @@ ${input.taskDescription}`,
         stopWhen: stepCountIs(20),
       });
 
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Starting agent generation");
+
       const result = await agent.generate({
         messages: [
           {
@@ -98,12 +162,32 @@ ${input.taskDescription}`,
         ],
       });
 
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Agent generation completed", {
+          stepsExecuted: result.steps?.length || 0,
+          outputLength: result.text?.length || 0,
+          usage: result.usage,
+        });
+
       // Extract the final result
       const finalResult = {
         output: result.text,
         usage: result.usage,
         steps: result.steps?.length || 0,
       };
+
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .info("ExecutionAgent: Updating agent status to completed", {
+          outputPreview: result.text?.substring(0, 100),
+        });
 
       await updateAgentStatus(db, input.agentId, "completed", {
         result: finalResult,
@@ -116,6 +200,7 @@ ${input.taskDescription}`,
         })
         .info("ExecutionAgent: Task completed successfully", {
           steps: finalResult.steps,
+          totalTokens: result.usage?.totalTokens,
         });
 
       this.setState({ isExecuting: false });
@@ -123,9 +208,7 @@ ${input.taskDescription}`,
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-
-      const db = getDb(this.env.HYPERDRIVE.connectionString);
-      await updateAgentStatus(db, input.agentId, "failed", { errorMessage });
+      const errorStack = error instanceof Error ? error.stack : undefined;
 
       logger
         .withTags({
@@ -134,7 +217,37 @@ ${input.taskDescription}`,
         })
         .error("ExecutionAgent: Task execution failed", {
           error: errorMessage,
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          stack: errorStack,
         });
+
+      try {
+        const db = getDb(this.env.HYPERDRIVE.connectionString);
+
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .info("ExecutionAgent: Updating agent status to failed");
+
+        await updateAgentStatus(db, input.agentId, "failed", {
+          errorMessage,
+        });
+      } catch (statusUpdateError) {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .error("ExecutionAgent: Failed to update agent status", {
+            originalError: errorMessage,
+            statusUpdateError:
+              statusUpdateError instanceof Error
+                ? statusUpdateError.message
+                : String(statusUpdateError),
+          });
+      }
 
       this.setState({ isExecuting: false });
       return { success: false, error: errorMessage };
