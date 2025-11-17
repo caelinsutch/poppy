@@ -19,7 +19,7 @@ describe("Agent Manager Service", () => {
     db = getDb(env.HYPERDRIVE.connectionString);
 
     // Create a test user
-    const [user] = await db
+    const [_user] = await db
       .insert(users)
       .values({
         phoneNumber: `+1${Date.now()}`,
@@ -54,7 +54,11 @@ describe("Agent Manager Service", () => {
 
   describe("updateAgentStatus", () => {
     it("should update agent status to completed", async () => {
-      const updatedAgent = await updateAgentStatus(db, testAgentId, "completed");
+      const updatedAgent = await updateAgentStatus(
+        db,
+        testAgentId,
+        "completed",
+      );
 
       expect(updatedAgent.status).toBe("completed");
       expect(updatedAgent.completedAt).toBeDefined();

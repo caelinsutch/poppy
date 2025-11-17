@@ -1,8 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { WorkerEnv } from "../../context";
-import { ExecutionAgent } from "../../durable-objects/execution-agent";
-import type { Trigger } from "../../types";
+import type { ExecutionAgent } from "../../durable-objects/execution-agent";
 
 // Extend ProvidedEnv to include our bindings
 declare module "cloudflare:test" {
@@ -101,7 +100,7 @@ describe("ExecutionAgent - Trigger Management", () => {
         payload: "Original task",
         startTime,
       });
-      triggerId = result.trigger!.id;
+      triggerId = result.trigger?.id;
     });
 
     it("should update trigger status", async () => {
@@ -233,7 +232,7 @@ describe("ExecutionAgent - Trigger Management", () => {
         startTime,
       });
 
-      await agent.updateTrigger(createResult.trigger!.id, {
+      await agent.updateTrigger(createResult.trigger?.id, {
         status: "paused",
       });
 
@@ -424,7 +423,7 @@ describe("ExecutionAgent - Trigger Management", () => {
         startTime,
       });
 
-      const triggerId = createResult.trigger!.id;
+      const triggerId = createResult.trigger?.id;
 
       await agent.updateTrigger(triggerId, { status: "paused" });
       await agent.updateTrigger(triggerId, { status: "active" });
