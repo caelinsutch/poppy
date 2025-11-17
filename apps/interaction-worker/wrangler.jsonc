@@ -45,7 +45,7 @@
       "services": [
         {
           "binding": "EXECUTION_WORKER",
-          "service": "poppy-execution-worker-production"
+          "service": "poppy-execution-production"
         }
       ],
       "hyperdrive": [
@@ -73,7 +73,7 @@
       "services": [
         {
           "binding": "EXECUTION_WORKER",
-          "service": "poppy-execution-worker-staging"
+          "service": "poppy-execution-staging"
         }
       ],
       "hyperdrive": [
