@@ -7,15 +7,11 @@ import type { WorkerEnv } from "../context";
 import { updateAgentStatus } from "../services/agent-manager";
 import { createResearchTool } from "../tools/research";
 import { createWaitTool } from "../tools/wait";
-import type { ExecutionState, TaskInput, Trigger } from "../types";
+import type { ExecutionState, TaskInput } from "../types";
 
 export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   initialState: ExecutionState = {
-    agentId: "",
-    taskDescription: "",
-    status: "pending",
-    result: null,
-    triggers: [],
+    isExecuting: false,
   };
 
   /**
@@ -25,6 +21,16 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   async executeTask(
     input: TaskInput,
   ): Promise<{ success: boolean; result?: unknown; error?: string }> {
+    // Check if already executing to prevent concurrent runs
+    if (this.state.isExecuting) {
+      return {
+        success: false,
+        error: "Agent is already executing a task",
+      };
+    }
+
+    this.setState({ isExecuting: true });
+
     logger
       .withTags({
         agentId: input.agentId,
@@ -33,14 +39,6 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
       .info("ExecutionAgent: Starting task execution", {
         taskDescription: input.taskDescription,
       });
-
-    this.setState({
-      agentId: input.agentId,
-      taskDescription: input.taskDescription,
-      status: "running",
-      result: null,
-      triggers: this.state.triggers,
-    });
 
     try {
       const db = getDb(this.env.HYPERDRIVE.connectionString);
@@ -107,12 +105,6 @@ ${input.taskDescription}`,
         steps: result.steps?.length || 0,
       };
 
-      this.setState({
-        ...this.state,
-        status: "completed",
-        result: finalResult,
-      });
-
       await updateAgentStatus(db, input.agentId, "completed", {
         result: finalResult,
       });
@@ -126,16 +118,11 @@ ${input.taskDescription}`,
           steps: finalResult.steps,
         });
 
+      this.setState({ isExecuting: false });
       return { success: true, result: finalResult };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-
-      this.setState({
-        ...this.state,
-        status: "failed",
-        result: { error: errorMessage },
-      });
 
       const db = getDb(this.env.HYPERDRIVE.connectionString);
       await updateAgentStatus(db, input.agentId, "failed", { errorMessage });
@@ -149,144 +136,8 @@ ${input.taskDescription}`,
           error: errorMessage,
         });
 
+      this.setState({ isExecuting: false });
       return { success: false, error: errorMessage };
     }
-  }
-
-  /**
-   * Create a trigger for scheduled execution
-   */
-  @callable()
-  async createTrigger(trigger: {
-    payload: string;
-    startTime: string; // ISO 8601
-    rrule?: string; // iCalendar RRULE for recurrence
-  }): Promise<{ success: boolean; trigger?: Trigger; error?: string }> {
-    logger.info("ExecutionAgent: Creating trigger", {
-      startTime: trigger.startTime,
-      hasRrule: !!trigger.rrule,
-    });
-
-    try {
-      const newTrigger: Trigger = {
-        id: crypto.randomUUID(),
-        agentId: this.state.agentId,
-        payload: trigger.payload,
-        startTime: trigger.startTime,
-        rrule: trigger.rrule,
-        status: "active",
-        createdAt: new Date().toISOString(),
-      };
-
-      this.setState({
-        ...this.state,
-        triggers: [...this.state.triggers, newTrigger],
-      });
-
-      logger.info("ExecutionAgent: Trigger created successfully", {
-        triggerId: newTrigger.id,
-      });
-
-      return { success: true, trigger: newTrigger };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      logger.error("ExecutionAgent: Failed to create trigger", {
-        error: errorMessage,
-      });
-      return { success: false, error: errorMessage };
-    }
-  }
-
-  /**
-   * Update an existing trigger
-   */
-  @callable()
-  async updateTrigger(
-    triggerId: string,
-    updates: Partial<Pick<Trigger, "status" | "startTime" | "rrule">>,
-  ): Promise<{ success: boolean; trigger?: Trigger; error?: string }> {
-    logger.info("ExecutionAgent: Updating trigger", {
-      triggerId,
-      updates,
-    });
-
-    try {
-      const triggerIndex = this.state.triggers.findIndex(
-        (t) => t.id === triggerId,
-      );
-      if (triggerIndex === -1) {
-        return { success: false, error: "Trigger not found" };
-      }
-
-      const updatedTriggers = [...this.state.triggers];
-      updatedTriggers[triggerIndex] = {
-        ...updatedTriggers[triggerIndex],
-        ...updates,
-      };
-
-      this.setState({
-        ...this.state,
-        triggers: updatedTriggers,
-      });
-
-      logger.info("ExecutionAgent: Trigger updated successfully", {
-        triggerId,
-      });
-
-      return { success: true, trigger: updatedTriggers[triggerIndex] };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      logger.error("ExecutionAgent: Failed to update trigger", {
-        error: errorMessage,
-      });
-      return { success: false, error: errorMessage };
-    }
-  }
-
-  /**
-   * List all triggers for this agent
-   */
-  @callable()
-  async listTriggers(): Promise<Trigger[]> {
-    return this.state.triggers;
-  }
-
-  /**
-   * Get current execution status
-   */
-  @callable()
-  async getStatus(): Promise<ExecutionState> {
-    return this.state;
-  }
-
-  /**
-   * Triggered by cron worker to execute scheduled tasks
-   */
-  @callable()
-  async executeTrigger(
-    triggerId: string,
-  ): Promise<{ success: boolean; error?: string }> {
-    const trigger = this.state.triggers.find((t) => t.id === triggerId);
-    if (!trigger) {
-      return { success: false, error: "Trigger not found" };
-    }
-
-    if (trigger.status !== "active") {
-      return { success: false, error: "Trigger is not active" };
-    }
-
-    logger.info("ExecutionAgent: Executing trigger", {
-      triggerId,
-      payload: trigger.payload,
-    });
-
-    // Execute the task with the trigger payload
-    return await this.executeTask({
-      agentId: this.state.agentId,
-      taskDescription: trigger.payload,
-      conversationId: "", // Will need to pass this through trigger
-    });
   }
 }

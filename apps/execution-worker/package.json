@@ -10,10 +10,7 @@
     "deploy": "run-wrangler-deploy-production",
     "deploy:staging": "run-wrangler-deploy-staging",
     "typecheck": "run-tsc",
-    "cf-typegen": "run-wrangler-types",
-    "test": "run-vitest run",
-    "test:watch": "run-vitest",
-    "test:ui": "run-vitest --ui"
+    "cf-typegen": "run-wrangler-types"
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "^1.2.0",
