@@ -3,6 +3,7 @@ import { messages as messagesTable } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { generateId, tool } from "ai";
 import { z } from "zod";
+import { env } from "cloudflare:workers";
 import type { WorkerEnv } from "../context";
 import {
   createExecutionAgent,
@@ -13,7 +14,6 @@ type Database = ReturnType<typeof getDb>;
 
 export const createSendMessageToAgentTool = (
   db: Database,
-  env: WorkerEnv,
   interactionAgentId: string,
   conversationId: string,
 ) => {
@@ -127,8 +127,8 @@ The agent has tools for a wide variety of tasks. Use this tool often.
 
       try {
         // Get the Durable Object stub for this execution agent
-        const id = env.EXECUTION_WORKER.idFromName(executionAgent.id);
-        const stub = env.EXECUTION_WORKER.get(id) as any;
+        const id = await (env as any).EXECUTION_WORKER.idFromName(executionAgent.id);
+        const stub = await (env as any).EXECUTION_WORKER.get(id) as any;
 
         // Call the executeTask method via RPC
         const result = (await stub.executeTask({

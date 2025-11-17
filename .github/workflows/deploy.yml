@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/interaction-worker/**"
+      - "apps/**"
       - "packages/**"
       - ".github/workflows/deploy.yml"
 
@@ -17,9 +17,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment:
-      name: production
-      url: https://poppy-interaction-production.caelinsutch.workers.dev
+    environment: production
 
     steps:
       - name: Checkout code
