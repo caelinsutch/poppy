@@ -67,16 +67,12 @@ export const createExecutionAgent = async (
     parentInteractionAgentId: string;
     conversationId: string;
     purpose: string;
-    taskId?: string;
-    taskRunId?: string;
   },
 ): Promise<Agent> => {
   const {
     parentInteractionAgentId,
     conversationId,
     purpose,
-    taskId,
-    taskRunId,
   } = options;
 
   logger
@@ -86,8 +82,6 @@ export const createExecutionAgent = async (
     })
     .info("Creating execution agent", {
       purpose,
-      taskId,
-      taskRunId,
     });
 
   const [executionAgent] = await db
@@ -97,8 +91,6 @@ export const createExecutionAgent = async (
       parentInteractionAgentId,
       conversationId,
       purpose,
-      taskId,
-      taskRunId,
       status: "active",
     })
     .returning();

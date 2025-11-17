@@ -10,7 +10,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { agentStatusEnum, agentTypeEnum } from "./enums";
 import { conversations } from "./messaging";
-import { taskRuns, tasks } from "./tasks";
 
 // Core agent instances
 export const agents = pgTable(
@@ -30,8 +29,6 @@ export const agents = pgTable(
     conversationId: uuid("conversation_id")
       .references(() => conversations.id)
       .notNull(), // Both types link to conversation
-    taskId: uuid("task_id").references(() => tasks.id), // For execution agents
-    taskRunId: uuid("task_run_id").references(() => taskRuns.id),
 
     // Agent state
     status: agentStatusEnum("status").notNull().default("initializing"),

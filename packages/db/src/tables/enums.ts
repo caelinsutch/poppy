@@ -12,12 +12,6 @@ export const taskStatusEnum = pgEnum("task_status", [
   "expired",
 ]);
 
-export const taskTypeEnum = pgEnum("task_type", [
-  "find_reservations",
-  "modify_reservation",
-  "cancel_reservation",
-]);
-
 export const stepTypeEnum = pgEnum("step_type", [
   "web_search",
   "check_availability",

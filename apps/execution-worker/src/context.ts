@@ -6,7 +6,7 @@ import type { ExecutionAgent } from "./durable-objects/execution-agent";
 // Re-export the Env from the global Cloudflare namespace with proper DO typing
 export type WorkerEnv = SharedHonoEnv &
   Cloudflare.Env & {
-    EXECUTION_AGENT: ExecutionAgent;
+    EXECUTION_AGENT: DurableObjectNamespace<ExecutionAgent>;
     HYPERDRIVE: Hyperdrive;
   };
 

@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { defineWorkersProject } from "@cloudflare/vitest-pool-workers/config";
 import { config } from "dotenv";
 
-// Load .env file from the interaction-worker directory
+// Load .env file from the execution-worker directory
 config({ path: resolve(__dirname, ".env") });
 
 export default defineWorkersProject({
@@ -22,12 +22,9 @@ export default defineWorkersProject({
             OPENROUTER_API_KEY:
               process.env.OPENROUTER_API_KEY || "mock-openrouter-api-key",
             NODE_ENV: "test",
-            DATABASE_URL:
-              process.env.DATABASE_URL ||
-              "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
           },
           durableObjects: {
-            MESSAGE_DEBOUNCER: "MessageDebouncer",
+            EXECUTION_AGENT: "ExecutionAgent",
           },
           hyperdrives: {
             HYPERDRIVE:
@@ -36,6 +33,11 @@ export default defineWorkersProject({
           },
         },
       },
+    },
+  },
+  resolve: {
+    alias: {
+      ajv: "ajv/dist/2020.js",
     },
   },
 });
