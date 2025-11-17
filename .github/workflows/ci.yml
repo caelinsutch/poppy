@@ -111,5 +111,5 @@ jobs:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/poppy_test
           CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgresql://postgres:postgres@localhost:5432/poppy_test
-          EXASEARCH_API_KEY: mock-exa-api-key
-          OPENROUTER_API_KEY: mock-openrouter-api-key
+          EXASEARCH_API_KEY: ${{ env.EXASEARCH_API_KEY }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
