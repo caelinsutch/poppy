@@ -136,6 +136,9 @@ importers:
       '@poppy/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@poppy/execution-worker':
+        specifier: workspace:*
+        version: link:../execution-worker
       '@poppy/hono-helpers':
         specifier: workspace:*
         version: link:../../packages/hono-helpers

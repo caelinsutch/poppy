@@ -16,7 +16,7 @@ export const generateResponse = async (
     interactionAgentId: string;
   },
 ) => {
-  const { conversation, participants, interactionAgentId, db } = options;
+  const { conversation, participants, interactionAgentId, db, env } = options;
 
   logger
     .withTags({
@@ -116,6 +116,7 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     tools: {
       send_message_to_agent: createSendMessageToAgentTool(
         db,
+        env,
         interactionAgentId,
         conversation.id,
       ),

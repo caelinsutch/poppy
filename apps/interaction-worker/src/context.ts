@@ -7,6 +7,9 @@ import type { MessageDebouncer } from "./durable-objects/message-debouncer";
 export type WorkerEnv = SharedHonoEnv &
   Cloudflare.Env & {
     MESSAGE_DEBOUNCER: DurableObjectNamespace<MessageDebouncer>;
+    EXECUTION_WORKER: {
+      EXECUTION_AGENT: DurableObjectNamespace<undefined>;
+    };
     HYPERDRIVE: Hyperdrive;
   };
 
