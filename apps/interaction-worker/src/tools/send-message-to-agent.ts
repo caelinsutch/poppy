@@ -127,9 +127,7 @@ The agent has tools for a wide variety of tasks. Use this tool often.
 
       try {
         // Get the Durable Object stub for this execution agent
-        const id = env.EXECUTION_WORKER.idFromName(
-          executionAgent.id,
-        );
+        const id = env.EXECUTION_WORKER.idFromName(executionAgent.id);
         const stub = env.EXECUTION_WORKER.get(id) as any;
 
         // Call the executeTask method via RPC
