@@ -217,7 +217,8 @@ ${input.taskDescription}`,
         })
         .error("ExecutionAgent: Task execution failed", {
           error: errorMessage,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorType:
+            error instanceof Error ? error.constructor.name : typeof error,
           stack: errorStack,
         });
 
