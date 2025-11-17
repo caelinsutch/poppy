@@ -1,0 +1,44 @@
+{
+  "name": "@poppy/execution-worker",
+  "private": true,
+  "version": "0.0.0",
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "dev": "run-wrangler-dev --env staging",
+    "dev:production": "run-wrangler-dev --env production",
+    "deploy": "run-wrangler-deploy-production",
+    "deploy:staging": "run-wrangler-deploy-staging",
+    "typecheck": "run-tsc",
+    "cf-typegen": "run-wrangler-types",
+    "test": "run-vitest run",
+    "test:watch": "run-vitest",
+    "test:ui": "run-vitest --ui"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "^1.2.0",
+    "@poppy/clients": "workspace:*",
+    "@poppy/db": "workspace:*",
+    "@poppy/hono-helpers": "workspace:*",
+    "@poppy/lib": "workspace:*",
+    "@poppy/schemas": "workspace:*",
+    "@poppy/types": "workspace:*",
+    "agents": "^0.2.23",
+    "ai": "catalog:",
+    "drizzle-orm": "catalog:",
+    "exa-js": "^1.9.3",
+    "hono": "^4.6.14",
+    "postgres": "^3.4.5",
+    "wretch": "^2.11.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.10.5",
+    "@poppy/tools": "workspace:*",
+    "@poppy/typescript-config": "workspace:*",
+    "dotenv": "^17.2.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}
