@@ -69,11 +69,7 @@ export const createExecutionAgent = async (
     purpose: string;
   },
 ): Promise<Agent> => {
-  const {
-    parentInteractionAgentId,
-    conversationId,
-    purpose,
-  } = options;
+  const { parentInteractionAgentId, conversationId, purpose } = options;
 
   logger
     .withTags({

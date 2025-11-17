@@ -14,7 +14,7 @@ describe("ExecutionAgent - Integration Tests", () => {
     db = getDb(env.HYPERDRIVE.connectionString);
 
     // Create a test user
-    const [user] = await db
+    const [_user] = await db
       .insert(users)
       .values({
         phoneNumber: `+1${Date.now()}`,
@@ -249,7 +249,7 @@ describe("ExecutionAgent - Integration Tests", () => {
         taskDescription: "Test task",
       };
 
-      const result = await agent.executeTask(taskInput);
+      const _result = await agent.executeTask(taskInput);
 
       const status = await agent.getStatus();
       expect(status.status).toBe("failed");
@@ -333,7 +333,7 @@ describe("ExecutionAgent - Integration Tests", () => {
         startTime: new Date().toISOString(),
       });
 
-      const triggerId = createResult.trigger!.id;
+      const triggerId = createResult.trigger?.id;
 
       // Execute the trigger
       const result = await agent.executeTrigger(triggerId);
@@ -364,7 +364,7 @@ describe("ExecutionAgent - Integration Tests", () => {
         startTime: new Date().toISOString(),
       });
 
-      const triggerId = createResult.trigger!.id;
+      const triggerId = createResult.trigger?.id;
 
       await agent.updateTrigger(triggerId, { status: "paused" });
 
