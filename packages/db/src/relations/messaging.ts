@@ -6,7 +6,6 @@ import {
   messages,
   parts,
 } from "../tables/messaging";
-import { taskEvents } from "../tables/tasks";
 import { users } from "../tables/users";
 
 export const conversationsRelations = relations(conversations, ({ many }) => ({
@@ -48,8 +47,6 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
     relationName: "toAgent",
   }),
   parts: many(parts),
-  triggeredEvents: many(taskEvents, { relationName: "triggerMessage" }),
-  responseEvents: many(taskEvents, { relationName: "responseMessage" }),
 }));
 
 export const partsRelations = relations(parts, ({ one }) => ({
