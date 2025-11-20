@@ -130,12 +130,12 @@ The agent has tools for a wide variety of tasks. Use this tool often.
         const id = env.EXECUTION_AGENT.idFromName(executionAgent.id);
         const stub = env.EXECUTION_AGENT.get(id) as any;
 
-        // Call the executeTask method via RPC
+        // Call the executeTask method via RPC (returns immediately)
         const result = (await stub.executeTask({
           agentId: executionAgent.id,
           conversationId,
           taskDescription: message,
-        })) as { success: boolean; result?: unknown; error?: string };
+        })) as { success: boolean; message: string };
 
         logger
           .withTags({
@@ -143,21 +143,13 @@ The agent has tools for a wide variety of tasks. Use this tool often.
             interactionAgentId,
             executionAgentId: executionAgent.id,
           })
-          .info("Execution-worker RPC call completed", result);
+          .info("Execution-worker RPC call initiated", result);
 
         if (result.success) {
-          // Extract the output from the result
-          const output =
-            typeof result.result === "object" &&
-            result.result !== null &&
-            "output" in result.result
-              ? (result.result as { output: string }).output
-              : JSON.stringify(result.result);
-
-          return `Task completed by ${executionAgent.purpose}. Result: ${output}`;
+          return `Task has been assigned to ${executionAgent.purpose} and is now executing in the background. You will receive the results when the task completes.`;
         }
 
-        return `Task execution failed: ${result.error}`;
+        return `Task execution failed to start: ${result.message}`;
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
