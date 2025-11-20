@@ -19,14 +19,6 @@ import {
 // Export Durable Object
 export { MessageDebouncer } from "./durable-objects/message-debouncer";
 
-// WorkerEntrypoint for RPC calls from other workers
-export class InteractionService extends WorkerEntrypoint<WorkerEnv> {
-  async handleAgentCompletion(input: AgentCompletionInput): Promise<void> {
-    const db = createDatabaseClient(this.env);
-    await processAgentCompletion(input, db, this.env);
-  }
-}
-
 const app = new Hono<App>();
 
 // Middleware
@@ -158,4 +150,14 @@ app.post("/", async (c) => {
 app.onError(withOnError<App>());
 app.notFound(withNotFound<App>());
 
-export default app;
+// Default export: WorkerEntrypoint class for both HTTP and RPC
+export default class extends WorkerEntrypoint<WorkerEnv> {
+  async fetch(request: Request): Promise<Response> {
+    return app.fetch(request, this.env, this.ctx);
+  }
+
+  async handleAgentCompletion(input: AgentCompletionInput): Promise<void> {
+    const db = createDatabaseClient(this.env);
+    await processAgentCompletion(input, db, this.env);
+  }
+}
