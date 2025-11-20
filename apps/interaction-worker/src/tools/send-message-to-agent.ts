@@ -1,9 +1,9 @@
-import { env } from "cloudflare:workers";
 import type { Agent, getDb } from "@poppy/db";
 import { messages as messagesTable } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { generateId, tool } from "ai";
 import { z } from "zod";
+import type { WorkerEnv } from "../context";
 import {
   createExecutionAgent,
   findExecutionAgentByPurpose,
@@ -15,6 +15,7 @@ export const createSendMessageToAgentTool = (
   db: Database,
   interactionAgentId: string,
   conversationId: string,
+  env: WorkerEnv,
 ) => {
   return tool({
     description: `Send a message to an execution agent to accomplish a task.
@@ -126,10 +127,10 @@ The agent has tools for a wide variety of tasks. Use this tool often.
 
       try {
         // Get the Durable Object stub for this execution agent
-        const id = await (env as any).EXECUTION_WORKER.idFromName(
+        const id = env.EXECUTION_WORKER.EXECUTION_AGENT.idFromName(
           executionAgent.id,
         );
-        const stub = (await (env as any).EXECUTION_WORKER.get(id)) as any;
+        const stub = env.EXECUTION_WORKER.EXECUTION_AGENT.get(id) as any;
 
         // Call the executeTask method via RPC
         const result = (await stub.executeTask({
