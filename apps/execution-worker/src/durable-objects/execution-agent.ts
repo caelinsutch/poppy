@@ -216,6 +216,8 @@ ${input.taskDescription}`,
           .error("ExecutionAgent: Failed to ping interaction worker", {
             error:
               rpcError instanceof Error ? rpcError.message : String(rpcError),
+            stack: rpcError instanceof Error ? rpcError.stack : undefined,
+            errorType: typeof rpcError,
           });
       }
     } catch (error) {
@@ -300,6 +302,8 @@ ${input.taskDescription}`,
             {
               error:
                 rpcError instanceof Error ? rpcError.message : String(rpcError),
+              stack: rpcError instanceof Error ? rpcError.stack : undefined,
+              errorType: typeof rpcError,
             },
           );
       }

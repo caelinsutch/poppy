@@ -157,7 +157,34 @@ export default class extends WorkerEntrypoint<WorkerEnv> {
   }
 
   async handleAgentCompletion(input: AgentCompletionInput): Promise<void> {
-    const db = createDatabaseClient(this.env);
-    await processAgentCompletion(input, db, this.env);
+    logger
+      .withTags({ module: "rpc-handler" })
+      .info("Received handleAgentCompletion RPC call", {
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+        success: input.success,
+      });
+
+    try {
+      const db = createDatabaseClient(this.env);
+      await processAgentCompletion(input, db, this.env);
+
+      logger
+        .withTags({ module: "rpc-handler" })
+        .info("Successfully processed agent completion", {
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        });
+    } catch (error) {
+      logger
+        .withTags({ module: "rpc-handler" })
+        .error("Failed to process agent completion", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        });
+      throw error;
+    }
   }
 }
