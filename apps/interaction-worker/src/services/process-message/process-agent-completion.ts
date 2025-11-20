@@ -1,4 +1,4 @@
-import { agents, messages as messagesTable } from "@poppy/db";
+import { agents, messages as messagesTable, parts } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { formatAgentConversation } from "@poppy/lib";
 import { generateId } from "ai";
@@ -46,6 +46,34 @@ export const processAgentCompletion = async (
       throw new Error(`Execution agent not found: ${agentId}`);
     }
 
+    // Log detailed agent information
+    completionLogger.info("Agent details", {
+      agentType: executionAgent.agentType,
+      agentPurpose: executionAgent.purpose,
+      agentStatus: executionAgent.status,
+    });
+
+    // Log the full output before processing
+    if (success && result) {
+      const truncatedResult =
+        result.length > 500
+          ? `${result.slice(0, 500)}... (truncated, total length: ${result.length})`
+          : result;
+      completionLogger.info("Agent completion result", {
+        resultLength: result.length,
+        resultPreview: truncatedResult,
+      });
+    } else if (error) {
+      const truncatedError =
+        error.length > 500
+          ? `${error.slice(0, 500)}... (truncated, total length: ${error.length})`
+          : error;
+      completionLogger.error("Agent completion error", {
+        errorLength: error.length,
+        errorDetails: truncatedError,
+      });
+    }
+
     // Get or create interaction agent for this conversation
     const interactionAgent = await getOrCreateInteractionAgent(
       db,
@@ -70,9 +98,26 @@ export const processAgentCompletion = async (
       },
     });
 
+    // Create part record for the message content
+    const messageContent = success
+      ? result || "Task completed with no output"
+      : error || "Task failed with unknown error";
+
+    await db.insert(parts).values({
+      id: generateId(),
+      messageId,
+      type: "text",
+      content: {
+        type: "text",
+        text: messageContent,
+      },
+      order: 0,
+    });
+
     completionLogger.info("Recorded agent completion message in database", {
       messageId,
       messageType: success ? "result" : "error",
+      contentLength: messageContent.length,
     });
 
     // Fetch conversation history
@@ -122,9 +167,14 @@ export const processAgentCompletion = async (
       throw new Error(`Conversation not found: ${conversationId}`);
     }
 
-    // Fetch the newly inserted message
+    // Fetch the newly inserted message with its parts
     const newMessage = await db.query.messages.findFirst({
       where: eq(messagesTable.id, messageId),
+      with: {
+        parts: {
+          orderBy: (parts, { asc }) => [asc(parts.order)],
+        },
+      },
     });
 
     if (!newMessage) {
@@ -145,7 +195,7 @@ export const processAgentCompletion = async (
         fromAgent: executionAgent,
         toAgent: interactionAgent,
         message: newMessage,
-        parts: [],
+        parts: newMessage.parts || [],
       },
       isGroup: conversation.isGroup,
     });
@@ -153,6 +203,19 @@ export const processAgentCompletion = async (
     completionLogger.info("Formatted conversation for processing", {
       conversationLength: formattedConversation.length,
       agentMessageCount: formattedAgentMessages.length,
+    });
+
+    // Log the data being sent to the interaction agent
+    completionLogger.info("Sending agent output to interaction agent", {
+      fromAgentType: executionAgent.agentType,
+      fromAgentPurpose: executionAgent.purpose,
+      toAgentId: interactionAgent.id,
+      messageType: success ? "result" : "error",
+      messageContent: messageContent,
+      messageContentLength: messageContent.length,
+      conversationHistoryCount: conversationHistory.length,
+      agentMessageCount: formattedAgentMessages.length,
+      formattedConversationLength: formattedConversation.length,
     });
 
     // Generate response from interaction agent
@@ -178,6 +241,24 @@ export const processAgentCompletion = async (
       messageCount: messagesToUser.length,
       usage,
     });
+
+    // Log the interaction agent's response messages
+    if (hasUserMessages && messagesToUser.length > 0) {
+      messagesToUser.forEach((msg, index) => {
+        const truncatedMsg =
+          msg.length > 500
+            ? `${msg.slice(0, 500)}... (truncated, total length: ${msg.length})`
+            : msg;
+        completionLogger.info(
+          `Interaction agent response message ${index + 1}`,
+          {
+            messageIndex: index,
+            messageLength: msg.length,
+            messagePreview: truncatedMsg,
+          },
+        );
+      });
+    }
 
     // Only send messages if the agent explicitly chose to respond to user
     if (!hasUserMessages) {

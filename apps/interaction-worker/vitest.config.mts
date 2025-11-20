@@ -36,6 +36,10 @@ export default defineWorkersProject({
               ),
             },
           },
+          serviceBindings: {
+            // Mock EXECUTION_WORKER for tests - override wrangler config
+            EXECUTION_WORKER: async () => new Response("mock", { status: 200 }),
+          },
           hyperdrives: {
             HYPERDRIVE:
               process.env.DATABASE_URL ||
