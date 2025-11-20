@@ -36,6 +36,14 @@ export default defineWorkersProject({
               ),
             },
           },
+          serviceBindings: {
+            EXECUTION_WORKER: {
+              scriptPath: resolve(
+                __dirname,
+                "../execution-worker/src/index.ts",
+              ),
+            },
+          },
           hyperdrives: {
             HYPERDRIVE:
               process.env.DATABASE_URL ||
