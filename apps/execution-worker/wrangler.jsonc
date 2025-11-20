@@ -49,6 +49,12 @@
           "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
         }
       ],
+      "services": [
+        {
+          "binding": "INTERACTION_WORKER",
+          "service": "poppy-interaction-production"
+        }
+      ],
       "vars": {
         "NODE_ENV": "production",
         "NAME": "poppy-execution"
@@ -69,6 +75,12 @@
           "binding": "HYPERDRIVE",
           "id": "91f63bb5e350490baae83bfe55e249f2",
           "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+        }
+      ],
+      "services": [
+        {
+          "binding": "INTERACTION_WORKER",
+          "service": "poppy-interaction-staging"
         }
       ],
       "vars": {

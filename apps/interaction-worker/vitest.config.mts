@@ -28,6 +28,10 @@ export default defineWorkersProject({
           },
           durableObjects: {
             MESSAGE_DEBOUNCER: "MessageDebouncer",
+            EXECUTION_AGENT: {
+              className: "ExecutionAgent",
+              scriptPath: resolve(__dirname, "../execution-worker/src/index.ts"),
+            },
           },
           hyperdrives: {
             HYPERDRIVE:

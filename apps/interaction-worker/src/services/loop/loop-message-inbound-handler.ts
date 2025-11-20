@@ -4,8 +4,11 @@ import type { Database } from "../../db/client";
 import type { MessageDebouncer } from "../../durable-objects/message-debouncer";
 import { getConversationHistory } from "../../helpers/db/get-conversation-history";
 import { DODebouncer } from "../../helpers/do-debouncer";
+import { createModuleLogger } from "../../helpers/logger";
 import { processMessage } from "../process-message/process-message";
 import { storeLoopMessages } from "./store-loop-messages";
+
+const logger = createModuleLogger("loop-message-inbound-handler");
 
 export interface MessageInboundHandlerOptions {
   payload: LoopMessageInboundPayload;
@@ -30,7 +33,7 @@ export const handleMessageInbound = async (
     );
   }
 
-  console.log("Handling message inbound", { payload });
+  logger.info("Handling message inbound", { payload });
 
   const debounceTime = 4000; // 4 seconds debounce window
 
@@ -44,7 +47,7 @@ export const handleMessageInbound = async (
   // Add message to debouncer
   await debouncer.addMessage(payload, debounceTime);
 
-  console.log("Added message to debouncer", {
+  logger.info("Added message to debouncer", {
     conversationId,
     recipient: payload.sender_name,
     messageId: payload.message_id,
@@ -54,12 +57,12 @@ export const handleMessageInbound = async (
   // Wait for debounce window minus a small buffer
   await waitFor(debounceTime - 500);
 
-  console.log("Debounce wait completed, checking for additional messages");
+  logger.info("Debounce wait completed, checking for additional messages");
 
   // Get all debounced messages
   const debouncedMessages = await debouncer.getMessages();
 
-  console.log("Retrieved debounced messages", {
+  logger.info("Retrieved debounced messages", {
     messageCount: debouncedMessages.length,
     messageIds: debouncedMessages.map((m) => m.message_id),
   });
@@ -68,7 +71,7 @@ export const handleMessageInbound = async (
   const lastMessage = debouncedMessages[debouncedMessages.length - 1];
 
   if (lastMessage.message_id !== payload.message_id) {
-    console.log("Skipping message processing - newer message exists", {
+    logger.info("Skipping message processing - newer message exists", {
       currentMessageId: payload.message_id,
       latestMessageId: lastMessage.message_id,
     });
@@ -87,7 +90,7 @@ export const handleMessageInbound = async (
         participants,
       } = await getConversationHistory(db, storedData.message.conversationId);
 
-      console.log("Fetched conversation context", {
+      logger.info("Fetched conversation context", {
         conversationId: conversation.id,
         messageCount: conversationHistory.length,
         participantCount: participants.length,
@@ -108,11 +111,11 @@ export const handleMessageInbound = async (
     // Clear the debouncer after successful processing
     await debouncer.clear();
 
-    console.log("Successfully processed debounced messages", {
+    logger.info("Successfully processed debounced messages", {
       messageCount: debouncedMessages.length,
     });
   } catch (error) {
-    console.error("Failed to process debounced messages", { error, payload });
+    logger.error("Failed to process debounced messages", { error, payload });
     throw error;
   }
 };

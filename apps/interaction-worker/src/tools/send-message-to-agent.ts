@@ -143,9 +143,7 @@ The agent has tools for a wide variety of tasks. Use this tool often.
             interactionAgentId,
             executionAgentId: executionAgent.id,
           })
-          .info("Execution-worker RPC call completed", {
-            success: result.success,
-          });
+          .info("Execution-worker RPC call completed", result);
 
         if (result.success) {
           // Extract the output from the result

@@ -8,6 +8,7 @@ import { loopMessageWebhookPayloadSchema } from "@poppy/schemas";
 import { Hono } from "hono";
 import type { App } from "./context";
 import { createDatabaseClient } from "./db/client";
+import { logger } from "./helpers/logger";
 import { handleMessageInbound } from "./services/loop/loop-message-inbound-handler";
 
 // Export Durable Object
@@ -32,7 +33,9 @@ app.get("/health", async (c) => {
       database: "connected",
     });
   } catch (error) {
-    console.error("Health check failed", error);
+    logger
+      .withTags({ module: "health-check" })
+      .error("Health check failed", { error });
     return c.json(
       {
         status: "error",
@@ -48,12 +51,15 @@ app.get("/health", async (c) => {
 // Webhook handler at root
 app.post("/", async (c) => {
   const body = await c.req.json();
-  console.log("Received webhook payload", body);
+  const webhookLogger = logger.withTags({ module: "webhook-handler" });
+  webhookLogger.info("Received webhook payload", { body });
 
   const validation = loopMessageWebhookPayloadSchema.safeParse(body);
 
   if (!validation.success) {
-    console.error("Invalid webhook payload", { error: validation.error });
+    webhookLogger.error("Invalid webhook payload", {
+      error: validation.error,
+    });
     return c.json({ success: false }, 400);
   }
 
@@ -80,57 +86,57 @@ app.post("/", async (c) => {
       }
 
       case "message_sent":
-        console.log("Message sent successfully", {
+        webhookLogger.info("Message sent successfully", {
           recipient: payload.recipient,
           success: payload.success,
-          message_id: payload.message_id,
+          messageId: payload.message_id,
         });
         return c.json({ success: true, read: true });
 
       case "message_failed":
-        console.error("Message failed to send", {
+        webhookLogger.error("Message failed to send", {
           recipient: payload.recipient,
-          error_code: payload.error_code,
-          message_id: payload.message_id,
+          errorCode: payload.error_code,
+          messageId: payload.message_id,
         });
         return c.json({ success: true, read: true });
 
       case "message_timeout":
-        console.warn("Message timed out", {
+        webhookLogger.warn("Message timed out", {
           recipient: payload.recipient,
-          error_code: payload.error_code,
-          message_id: payload.message_id,
+          errorCode: payload.error_code,
+          messageId: payload.message_id,
         });
         break;
 
       case "message_reaction":
-        console.log("Received message reaction", {
+        webhookLogger.info("Received message reaction", {
           recipient: payload.recipient,
           reaction: payload.reaction,
-          message_id: payload.message_id,
+          messageId: payload.message_id,
         });
         break;
 
       case "message_scheduled":
-        console.log("Message scheduled", {
+        webhookLogger.info("Message scheduled", {
           recipient: payload.recipient,
-          message_id: payload.message_id,
+          messageId: payload.message_id,
         });
         break;
 
       case "group_created":
-        console.log("Group created", {
-          group_id: payload.group.group_id,
+        webhookLogger.info("Group created", {
+          groupId: payload.group.group_id,
           participants: payload.group.participants,
         });
         break;
     }
 
-    console.log("Processed webhook payload", { payload });
+    webhookLogger.info("Processed webhook payload", { payload });
 
     return c.json({ success: true, typing: 8, read: true });
   } catch (error) {
-    console.error("Error processing webhook", error);
+    webhookLogger.error("Error processing webhook", { error });
     return c.json({ success: false }, 500);
   }
 });

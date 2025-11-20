@@ -11,6 +11,9 @@ import {
 } from "@poppy/db";
 import { eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
+import { createModuleLogger } from "../logger";
+
+const logger = createModuleLogger("get-conversation-history");
 
 export const getConversationHistory = async (
   db: Database,
@@ -74,7 +77,7 @@ export const getConversationHistory = async (
   const messagesWithParts = Array.from(messageMap.values());
   const participants = Array.from(participantMap.values());
 
-  console.log("Fetched conversation with history, participants and parts", {
+  logger.info("Fetched conversation with history, participants and parts", {
     conversationId,
     participantCount: participants.length,
     messageCount: messagesWithParts.length,

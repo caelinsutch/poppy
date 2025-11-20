@@ -13,19 +13,22 @@ import type { LoopMessageInboundPayload } from "@poppy/schemas";
 import { generateId, type TextPart, type UIMessage } from "ai";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
+import { createModuleLogger } from "../../helpers/logger";
+
+const logger = createModuleLogger("store-loop-messages");
 
 export const storeLoopMessages = async (
   db: Database,
   payloads: LoopMessageInboundPayload[],
 ): Promise<{ message: Message; parts: Part[] } | null> => {
   if (payloads.length === 0) {
-    console.warn("No messages to store");
+    logger.warn("No messages to store");
     return null;
   }
 
   // Use the first payload for channel/conversation lookup
   const primaryPayload = payloads[0];
-  console.log("primaryPayload", primaryPayload);
+  logger.info("Processing primary payload", { primaryPayload });
 
   // Step 1: Extract the UI message with associated parts
   const messageParts: TextPart[] = payloads.map((payload) => ({
@@ -39,7 +42,7 @@ export const storeLoopMessages = async (
     parts: messageParts,
   };
 
-  console.log("Storing debounced inbound messages", {
+  logger.info("Storing debounced inbound messages", {
     messageData: {
       id: uiMessage.id,
       role: uiMessage.role,
@@ -98,7 +101,7 @@ export const storeLoopMessages = async (
       newUsers.forEach((user) => {
         userMap.set(user.phoneNumber, user.id);
       });
-      console.log("Created new users", {
+      logger.info("Created new users", {
         count: newUsers.length,
         phoneNumbers: missingUsers,
       });
@@ -163,7 +166,7 @@ export const storeLoopMessages = async (
           channelType: "loop",
         };
 
-        console.log("Creating new conversation", { conversationData });
+        logger.info("Creating new conversation", { conversationData });
 
         // Only add loopMessageGroupId if it's defined (for group conversations)
         if (loopMessageGroupId) {
@@ -190,7 +193,7 @@ export const storeLoopMessages = async (
 
       conversationId = result;
 
-      console.log("Created new conversation with participants", {
+      logger.info("Created new conversation with participants", {
         conversationId,
         isGroup: isGroupMessage,
         participantCount: userMap.size,
@@ -230,7 +233,7 @@ export const storeLoopMessages = async (
       .returning();
     const insertedParts = await db.insert(parts).values(partsData).returning();
 
-    console.log("Successfully stored inbound message", {
+    logger.info("Successfully stored inbound message", {
       messageId: uiMessage.id,
       conversationId,
       senderUserId,
@@ -244,7 +247,7 @@ export const storeLoopMessages = async (
       parts: insertedParts,
     };
   } catch (error) {
-    console.error("Failed to store messages in database", { error, payloads });
+    logger.error("Failed to store messages in database", { error, payloads });
     throw error;
   }
 };
