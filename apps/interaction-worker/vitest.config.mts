@@ -30,7 +30,10 @@ export default defineWorkersProject({
             MESSAGE_DEBOUNCER: "MessageDebouncer",
             EXECUTION_AGENT: {
               className: "ExecutionAgent",
-              scriptPath: resolve(__dirname, "../execution-worker/src/index.ts"),
+              scriptPath: resolve(
+                __dirname,
+                "../execution-worker/src/index.ts",
+              ),
             },
           },
           hyperdrives: {
