@@ -7,6 +7,7 @@ import {
 import { Hono } from "hono";
 import type { App } from "./context";
 import { createDatabaseClient } from "./db/client";
+import { logger } from "./helpers/logger";
 
 // Export Durable Object
 export { ExecutionAgent } from "./durable-objects/execution-agent";
@@ -20,7 +21,9 @@ app.use("*", withDefaultCors());
 // Health check route with DB call
 app.get("/health", async (c) => {
   try {
-    console.log(c.env);
+    logger.withTags({ module: "health-check" }).info("Health check started", {
+      env: c.env,
+    });
     const db = createDatabaseClient(c.env);
     // Simple query to verify DB connection
     await db.execute("SELECT 1");
@@ -31,7 +34,9 @@ app.get("/health", async (c) => {
       database: "connected",
     });
   } catch (error) {
-    console.error("Health check failed", error);
+    logger
+      .withTags({ module: "health-check" })
+      .error("Health check failed", { error });
     return c.json(
       {
         status: "error",

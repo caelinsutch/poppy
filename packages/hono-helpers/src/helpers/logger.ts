@@ -11,6 +11,14 @@ export type LogTagHints = {
   headers: string;
   ip?: string;
   timestamp: string;
+  // Worker/Package identification
+  worker: string;
+  service: string;
+  module: string;
+  // Additional context
+  conversationId?: string;
+  userId?: string;
+  messageId?: string;
 };
 
 export const logger = new WorkersLogger<LogTagHints>();

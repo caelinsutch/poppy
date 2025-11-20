@@ -8,6 +8,7 @@ export type WorkerEnv = SharedHonoEnv &
   Cloudflare.Env & {
     EXECUTION_AGENT: DurableObjectNamespace<ExecutionAgent>;
     HYPERDRIVE: Hyperdrive;
+    INTERACTION_WORKER: Fetcher;
   };
 
 export type Variables = SharedHonoVariables;

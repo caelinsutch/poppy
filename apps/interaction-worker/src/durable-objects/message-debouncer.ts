@@ -1,6 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
 import type { WorkerEnv } from "../context";
+import { createModuleLogger } from "../helpers/logger";
+
+const logger = createModuleLogger("message-debouncer");
 
 interface MessageEntry {
   messages: LoopMessageInboundPayload[];
@@ -23,7 +26,7 @@ export class MessageDebouncer extends DurableObject {
     shouldProcess: boolean;
     messages: LoopMessageInboundPayload[];
   }> {
-    console.log("Adding message to Durable Object debouncer", {
+    logger.info("Adding message to Durable Object debouncer", {
       conversationId,
       messageId: message.message_id,
     });
@@ -78,7 +81,7 @@ export class MessageDebouncer extends DurableObject {
   private processConversation(conversationId: string): void {
     // This will be called after the debounce timeout
     // The actual processing happens in the worker, not here
-    console.log("Debounce timeout completed for conversation", {
+    logger.info("Debounce timeout completed for conversation", {
       conversationId,
     });
   }
