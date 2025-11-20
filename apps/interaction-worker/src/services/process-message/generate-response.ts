@@ -118,6 +118,7 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
         db,
         interactionAgentId,
         conversation.id,
+        env,
       ),
       send_message_to_user: sendMessageToUser,
       wait,
