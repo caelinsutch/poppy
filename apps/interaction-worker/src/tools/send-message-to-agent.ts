@@ -1,5 +1,5 @@
 import type { Agent, getDb } from "@poppy/db";
-import { messages as messagesTable } from "@poppy/db";
+import { messages as messagesTable, parts } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { generateId, tool } from "ai";
 import { z } from "zod";
@@ -101,8 +101,9 @@ The agent has tools for a wide variety of tasks. Use this tool often.
         });
 
       // Record the message in the messages table
+      const taskMessageId = generateId();
       await db.insert(messagesTable).values({
-        id: generateId(),
+        id: taskMessageId,
         conversationId,
         fromAgentId: interactionAgentId,
         toAgentId: executionAgent.id,
@@ -112,6 +113,18 @@ The agent has tools for a wide variety of tasks. Use this tool often.
           role: "user",
           agentMessage: true,
         },
+      });
+
+      // Create part record for the message content
+      await db.insert(parts).values({
+        id: generateId(),
+        messageId: taskMessageId,
+        type: "text",
+        content: {
+          type: "text",
+          text: message,
+        },
+        order: 0,
       });
 
       // Call execution-worker via RPC to execute the task

@@ -96,11 +96,30 @@ export const storeLoopMessages = async (
       const newUsers = await db
         .insert(users)
         .values(missingUsers.map((phoneNumber) => ({ phoneNumber })))
+        .onConflictDoNothing({ target: users.phoneNumber })
         .returning();
 
       newUsers.forEach((user) => {
         userMap.set(user.phoneNumber, user.id);
       });
+
+      // If onConflictDoNothing prevented some inserts, fetch those users
+      if (newUsers.length < missingUsers.length) {
+        const stillMissingPhones = missingUsers.filter(
+          (phone) => !userMap.has(phone),
+        );
+        if (stillMissingPhones.length > 0) {
+          const conflictedUsers = await db
+            .select()
+            .from(users)
+            .where(inArray(users.phoneNumber, stillMissingPhones));
+
+          conflictedUsers.forEach((user) => {
+            userMap.set(user.phoneNumber, user.id);
+          });
+        }
+      }
+
       logger.info("Created new users", {
         count: newUsers.length,
         phoneNumbers: missingUsers,
