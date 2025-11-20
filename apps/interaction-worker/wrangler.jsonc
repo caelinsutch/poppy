@@ -39,6 +39,11 @@
           {
             "name": "MESSAGE_DEBOUNCER",
             "class_name": "MessageDebouncer"
+          },
+          {
+            "name": "EXECUTION_AGENT",
+            "class_name": "ExecutionAgent",
+            "script_name": "poppy-execution-production"
           }
         ]
       },
@@ -67,6 +72,11 @@
           {
             "name": "MESSAGE_DEBOUNCER",
             "class_name": "MessageDebouncer"
+          },
+          {
+            "name": "EXECUTION_AGENT",
+            "class_name": "ExecutionAgent",
+            "script_name": "poppy-execution-staging"
           }
         ]
       },
