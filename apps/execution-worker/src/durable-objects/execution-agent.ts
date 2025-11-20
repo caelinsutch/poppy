@@ -15,29 +15,9 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   };
 
   /**
-   * Execute a task using an agentic loop with tools
+   * Execute task in background and ping interaction worker when done
    */
-  @callable()
-  async executeTask(
-    input: TaskInput,
-  ): Promise<{ success: boolean; result?: unknown; error?: string }> {
-    // Check if already executing to prevent concurrent runs
-    if (this.state.isExecuting) {
-      logger
-        .withTags({
-          agentId: input.agentId,
-          conversationId: input.conversationId,
-        })
-        .warn("ExecutionAgent: Attempted concurrent execution", {
-          taskDescription: input.taskDescription.substring(0, 100),
-        });
-
-      return {
-        success: false,
-        error: "Agent is already executing a task",
-      };
-    }
-
+  private async executeTaskInBackground(input: TaskInput): Promise<void> {
     this.setState({ isExecuting: true });
 
     logger
@@ -204,7 +184,40 @@ ${input.taskDescription}`,
         });
 
       this.setState({ isExecuting: false });
-      return { success: true, result: finalResult };
+
+      // Ping interaction worker with completion via RPC
+      try {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .info("ExecutionAgent: Pinging interaction worker with completion");
+
+        await this.env.INTERACTION_WORKER.handleAgentCompletion({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          success: true,
+          result: result.text,
+        });
+
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .info("ExecutionAgent: Successfully pinged interaction worker");
+      } catch (rpcError) {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .error("ExecutionAgent: Failed to ping interaction worker", {
+            error:
+              rpcError instanceof Error ? rpcError.message : String(rpcError),
+          });
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -251,7 +264,89 @@ ${input.taskDescription}`,
       }
 
       this.setState({ isExecuting: false });
-      return { success: false, error: errorMessage };
+
+      // Ping interaction worker with error via RPC
+      try {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .info("ExecutionAgent: Pinging interaction worker with error");
+
+        await this.env.INTERACTION_WORKER.handleAgentCompletion({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          success: false,
+          error: errorMessage,
+        });
+
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .info(
+            "ExecutionAgent: Successfully pinged interaction worker with error",
+          );
+      } catch (rpcError) {
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .error(
+            "ExecutionAgent: Failed to ping interaction worker with error",
+            {
+              error:
+                rpcError instanceof Error ? rpcError.message : String(rpcError),
+            },
+          );
+      }
     }
+  }
+
+  /**
+   * Execute a task using an agentic loop with tools
+   * Returns immediately and runs task in background
+   */
+  @callable()
+  async executeTask(
+    input: TaskInput,
+  ): Promise<{ success: boolean; message: string }> {
+    // Check if already executing to prevent concurrent runs
+    if (this.state.isExecuting) {
+      logger
+        .withTags({
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+        })
+        .warn("ExecutionAgent: Attempted concurrent execution", {
+          taskDescription: input.taskDescription.substring(0, 100),
+        });
+
+      return {
+        success: false,
+        message: "Agent is already executing a task",
+      };
+    }
+
+    logger
+      .withTags({
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+      })
+      .info("ExecutionAgent: Starting task execution in background", {
+        taskDescription: input.taskDescription.substring(0, 200),
+        taskLength: input.taskDescription.length,
+      });
+
+    // Start execution in background
+    this.ctx.waitUntil(this.executeTaskInBackground(input));
+
+    return {
+      success: true,
+      message: "Task execution started in background",
+    };
   }
 }

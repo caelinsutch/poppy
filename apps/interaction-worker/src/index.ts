@@ -1,3 +1,4 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
 import {
   useWorkersLogger,
   withDefaultCors,
@@ -6,13 +7,25 @@ import {
 } from "@poppy/hono-helpers";
 import { loopMessageWebhookPayloadSchema } from "@poppy/schemas";
 import { Hono } from "hono";
-import type { App } from "./context";
+import type { App, WorkerEnv } from "./context";
 import { createDatabaseClient } from "./db/client";
 import { logger } from "./helpers/logger";
 import { handleMessageInbound } from "./services/loop/loop-message-inbound-handler";
+import {
+  type AgentCompletionInput,
+  processAgentCompletion,
+} from "./services/process-message/process-agent-completion";
 
 // Export Durable Object
 export { MessageDebouncer } from "./durable-objects/message-debouncer";
+
+// WorkerEntrypoint for RPC calls from other workers
+export class InteractionService extends WorkerEntrypoint<WorkerEnv> {
+  async handleAgentCompletion(input: AgentCompletionInput): Promise<void> {
+    const db = createDatabaseClient(this.env);
+    await processAgentCompletion(input, db, this.env);
+  }
+}
 
 const app = new Hono<App>();
 
