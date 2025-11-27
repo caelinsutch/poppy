@@ -30,6 +30,8 @@ export const processAgentCompletion = async (
     success,
   });
 
+  completionLogger.info(input)
+
   try {
     // Get the execution agent
     const executionAgent = await db.query.agents.findFirst({
@@ -157,7 +159,7 @@ export const processAgentCompletion = async (
 
     // Format conversation with the new agent message
     const formattedConversation = formatAgentConversation({
-      conversationHistory: conversationHistory.map((msg: any) => ({
+      conversationHistory: conversationHistory.map((msg) => ({
         message: msg,
         parts: msg.parts,
       })),
@@ -171,12 +173,16 @@ export const processAgentCompletion = async (
       isGroup: conversation.isGroup,
     });
 
+    logger.info("Formatted conversation", {
+      formattedConversation,
+    });
+
     // Generate response from interaction agent
-    const { messagesToUser, hasUserMessages, usage } = await generateResponse(
+    const { messagesToUser, hasUserMessages, } = await generateResponse(
       formattedConversation,
       {
         conversation,
-        conversationHistory: conversationHistory.map((msg: any) => ({
+        conversationHistory: conversationHistory.map((msg) => ({
           message: msg,
           parts: msg.parts,
         })),
@@ -184,8 +190,7 @@ export const processAgentCompletion = async (
         env,
         db,
         interactionAgentId: interactionAgent.id,
-        currentMessage: newMessage as any,
-        currentParts: [],
+        currentMessage: newMessage,
       },
     );
 
