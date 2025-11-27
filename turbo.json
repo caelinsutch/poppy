@@ -25,18 +25,19 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
       "outputs": ["coverage/**"],
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "OPENROUTER_API_KEY"]
     },
     "test:ci": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**/*.test.ts", "src/**/*.spec.ts"],
       "outputs": ["coverage/**"],
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "OPENROUTER_API_KEY"]
     },
     "dev": {
       "dependsOn": ["^build", "topo"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["OPENROUTER_API_KEY"]
     },
     "start": {
       "dependsOn": ["^build"],

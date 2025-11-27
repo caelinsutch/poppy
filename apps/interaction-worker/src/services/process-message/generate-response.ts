@@ -1,4 +1,5 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
+import dayjs from "dayjs";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
@@ -17,10 +18,18 @@ export const generateResponse = async (
 ) => {
   const { conversation, participants, interactionAgentId, db, env } = options;
 
+  const currentTime = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
   const system = `
 ${basePrompt}
 
 ${conversation.isGroup ? "You are in a group conversation." : "You are in a 1-on-1 conversation with the user."}
+
+## Current Time
+
+Current time: ${currentTime}
+
+All messages in the conversation include a timestamp attribute in the format "YYYY-MM-DD HH:mm:ss". Use these timestamps to understand the temporal context of the conversation and provide time-aware responses when relevant.
 
 ## Conversation Flow
 

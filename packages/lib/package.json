@@ -7,8 +7,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@poppy/db": "workspace:*",
     "ai": "catalog:",
-    "@poppy/db": "workspace:*"
+    "dayjs": "^1.11.19"
   },
   "devDependencies": {
     "@poppy/typescript-config": "workspace:*",
