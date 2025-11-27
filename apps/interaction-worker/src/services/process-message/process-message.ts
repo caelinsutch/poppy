@@ -26,7 +26,6 @@ export const processMessage = async (
       conversationId: currentMessage.conversationId,
     })
     .info("Processing message with conversation history", {
-      partsCount: currentParts.length,
       historyCount: conversationHistory.length,
       participantCount: participants.length,
       isGroup: conversation?.isGroup || false,

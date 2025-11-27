@@ -182,6 +182,7 @@ export const processAgentCompletion = async (
       formattedConversation,
       {
         conversation,
+        currentParts: newMessage.parts || [],
         conversationHistory: conversationHistory.map((msg) => ({
           message: msg,
           parts: msg.parts,
