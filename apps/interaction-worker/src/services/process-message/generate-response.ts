@@ -123,16 +123,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     ],
   });
 
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Agent completed", {
-      output: result.output,
-      usage: result.usage,
-    });
-
   // Extract messages to user from tool results
   const messagesToUser: string[] = [];
 
@@ -172,5 +162,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     usage: result.usage,
     messagesToUser,
     hasUserMessages: messagesToUser.length > 0,
+    steps: result.steps,
   };
 };
