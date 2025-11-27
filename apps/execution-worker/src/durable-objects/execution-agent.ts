@@ -191,6 +191,7 @@ ${input.taskDescription}`,
           .withTags({
             agentId: input.agentId,
             conversationId: input.conversationId,
+            result: result.text,
           })
           .info("ExecutionAgent: Pinging interaction worker with completion");
 
