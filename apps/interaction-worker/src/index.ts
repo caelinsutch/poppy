@@ -137,8 +137,6 @@ app.post("/", async (c) => {
         break;
     }
 
-    webhookLogger.info("Processed webhook payload", { payload });
-
     return c.json({ success: true, typing: 8, read: true });
   } catch (error) {
     webhookLogger.error("Error processing webhook", { error });

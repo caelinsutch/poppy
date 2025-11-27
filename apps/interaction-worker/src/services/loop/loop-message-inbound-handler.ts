@@ -57,8 +57,6 @@ export const handleMessageInbound = async (
   // Wait for debounce window minus a small buffer
   await waitFor(debounceTime - 500);
 
-  logger.info("Debounce wait completed, checking for additional messages");
-
   // Get all debounced messages
   const debouncedMessages = await debouncer.getMessages();
 

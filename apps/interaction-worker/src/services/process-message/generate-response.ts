@@ -1,4 +1,3 @@
-import { logger } from "@poppy/hono-helpers";
 import { stepCountIs, ToolLoopAgent } from "ai";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
@@ -17,13 +16,6 @@ export const generateResponse = async (
   },
 ) => {
   const { conversation, participants, interactionAgentId, db, env } = options;
-
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Generating response");
 
   const system = `
 ${basePrompt}
@@ -147,17 +139,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
       }
     }
   }
-
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Response generated", {
-      messageCount: messagesToUser.length,
-      messages: messagesToUser,
-    });
-
   return {
     usage: result.usage,
     messagesToUser,

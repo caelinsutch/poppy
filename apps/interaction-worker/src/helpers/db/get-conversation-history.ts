@@ -9,7 +9,7 @@ import {
   type User,
   users,
 } from "@poppy/db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { createModuleLogger } from "../logger";
 
@@ -20,6 +20,8 @@ export const getConversationHistory = async (
   conversationId: string,
 ) => {
   // Fetch conversation with all related data in a single query
+  // IMPORTANT: Only fetch user-facing messages (exclude agent-to-agent messages)
+  // Agent messages have fromAgentId or toAgentId set
   const result = await db
     .select({
       conversation: conversations,
@@ -28,7 +30,15 @@ export const getConversationHistory = async (
       participant: users,
     })
     .from(conversations)
-    .leftJoin(messages, eq(messages.conversationId, conversations.id))
+    .leftJoin(
+      messages,
+      and(
+        eq(messages.conversationId, conversations.id),
+        // Exclude agent messages - only get user messages and Poppy replies
+        isNull(messages.fromAgentId),
+        isNull(messages.toAgentId),
+      ),
+    )
     .leftJoin(parts, eq(parts.messageId, messages.id))
     .leftJoin(
       conversationParticipants,
