@@ -41,16 +41,6 @@ export const storeLoopMessages = async (
     role: "user",
     parts: messageParts,
   };
-
-  logger.info("Storing debounced inbound messages", {
-    messageData: {
-      id: uiMessage.id,
-      role: uiMessage.role,
-      parts: uiMessage.parts,
-      messageCount: payloads.length,
-    },
-  });
-
   try {
     // Step 2: Create users for each person in conversation
     // Determine if this is a group message and extract group ID

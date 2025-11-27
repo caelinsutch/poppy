@@ -45,6 +45,12 @@ export const formatAgentConversation = (
 
   // Add conversation history (user messages and bot replies)
   for (const item of conversationHistory) {
+    // Skip agent messages - they should not be in conversationHistory
+    // Agent messages have fromAgentId or toAgentId set
+    if (item.message.fromAgentId || item.message.toAgentId) {
+      continue;
+    }
+
     const type = item.message.isOutbound ? "poppy_reply" : "user_message";
     const content = formatMessageContent(item.message, item.parts, isGroup);
 

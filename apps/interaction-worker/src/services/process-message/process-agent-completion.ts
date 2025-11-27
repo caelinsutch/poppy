@@ -2,7 +2,7 @@ import { agents, messages as messagesTable, parts } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { formatAgentConversation } from "@poppy/lib";
 import { generateId } from "ai";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
 import { getOrCreateInteractionAgent } from "../agents";
@@ -93,11 +93,14 @@ export const processAgentCompletion = async (
       order: 0,
     });
 
-    // Fetch conversation history
+    // Fetch conversation history (exclude agent messages)
+    // Only get user messages and Poppy replies - not agent-to-agent messages
     const conversationHistory = await db.query.messages.findMany({
       where: and(
         eq(messagesTable.conversationId, conversationId),
-        eq(messagesTable.isOutbound, false),
+        // Exclude agent messages - agent messages have fromAgentId or toAgentId set
+        isNull(messagesTable.fromAgentId),
+        isNull(messagesTable.toAgentId),
       ),
       with: {
         parts: {
