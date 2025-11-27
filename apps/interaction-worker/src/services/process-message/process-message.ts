@@ -90,12 +90,10 @@ export const processMessage = async (
         agentId: interactionAgent.id,
       })
       .info("Formatted conversation for agent processing", {
-        conversationLength: formattedConversation.length,
-        agentMessageCount: formattedAgentMessages.length,
-        formatAgentConversation,
+        formattedConversation,
       });
 
-    const { messagesToUser, hasUserMessages, usage } = await generateResponse(
+    const { messagesToUser, hasUserMessages, steps } = await generateResponse(
       formattedConversation,
       {
         ...options,
@@ -110,9 +108,8 @@ export const processMessage = async (
         agentId: interactionAgent.id,
       })
       .info("Generated AI response", {
-        hasUserMessages,
-        messageCount: messagesToUser.length,
-        usage,
+        messagesToUser,
+        steps,
       });
 
     // Only send messages if the agent explicitly chose to respond to user
