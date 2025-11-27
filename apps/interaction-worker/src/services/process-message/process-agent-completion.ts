@@ -30,11 +30,6 @@ export const processAgentCompletion = async (
     success,
   });
 
-  completionLogger.info("Processing agent completion", {
-    hasResult: !!result,
-    hasError: !!error,
-  });
-
   try {
     // Get the execution agent
     const executionAgent = await db.query.agents.findFirst({
@@ -46,31 +41,13 @@ export const processAgentCompletion = async (
       throw new Error(`Execution agent not found: ${agentId}`);
     }
 
-    // Log detailed agent information
-    completionLogger.info("Agent details", {
-      agentType: executionAgent.agentType,
-      agentPurpose: executionAgent.purpose,
-      agentStatus: executionAgent.status,
-    });
-
-    // Log the full output before processing
     if (success && result) {
-      const truncatedResult =
-        result.length > 500
-          ? `${result.slice(0, 500)}... (truncated, total length: ${result.length})`
-          : result;
-      completionLogger.info("Agent completion result", {
-        resultLength: result.length,
-        resultPreview: truncatedResult,
+      completionLogger.info("Agent result", {
+        result: result.length > 500 ? `${result.substring(0, 500)}...` : result,
       });
     } else if (error) {
-      const truncatedError =
-        error.length > 500
-          ? `${error.slice(0, 500)}... (truncated, total length: ${error.length})`
-          : error;
-      completionLogger.error("Agent completion error", {
-        errorLength: error.length,
-        errorDetails: truncatedError,
+      completionLogger.error("Agent error", {
+        error: error.length > 500 ? `${error.substring(0, 500)}...` : error,
       });
     }
 
@@ -112,12 +89,6 @@ export const processAgentCompletion = async (
         text: messageContent,
       },
       order: 0,
-    });
-
-    completionLogger.info("Recorded agent completion message in database", {
-      messageId,
-      messageType: success ? "result" : "error",
-      contentLength: messageContent.length,
     });
 
     // Fetch conversation history
@@ -200,24 +171,6 @@ export const processAgentCompletion = async (
       isGroup: conversation.isGroup,
     });
 
-    completionLogger.info("Formatted conversation for processing", {
-      conversationLength: formattedConversation.length,
-      agentMessageCount: formattedAgentMessages.length,
-    });
-
-    // Log the data being sent to the interaction agent
-    completionLogger.info("Sending agent output to interaction agent", {
-      fromAgentType: executionAgent.agentType,
-      fromAgentPurpose: executionAgent.purpose,
-      toAgentId: interactionAgent.id,
-      messageType: success ? "result" : "error",
-      messageContent: messageContent,
-      messageContentLength: messageContent.length,
-      conversationHistoryCount: conversationHistory.length,
-      agentMessageCount: formattedAgentMessages.length,
-      formattedConversationLength: formattedConversation.length,
-    });
-
     // Generate response from interaction agent
     const { messagesToUser, hasUserMessages, usage } = await generateResponse(
       formattedConversation,
@@ -236,33 +189,13 @@ export const processAgentCompletion = async (
       },
     );
 
-    completionLogger.info("Generated response from interaction agent", {
-      hasUserMessages,
+    completionLogger.info("Generated response", {
       messageCount: messagesToUser.length,
-      usage,
+      messages: messagesToUser,
     });
-
-    // Log the interaction agent's response messages
-    if (hasUserMessages && messagesToUser.length > 0) {
-      messagesToUser.forEach((msg, index) => {
-        const truncatedMsg =
-          msg.length > 500
-            ? `${msg.slice(0, 500)}... (truncated, total length: ${msg.length})`
-            : msg;
-        completionLogger.info(
-          `Interaction agent response message ${index + 1}`,
-          {
-            messageIndex: index,
-            messageLength: msg.length,
-            messagePreview: truncatedMsg,
-          },
-        );
-      });
-    }
 
     // Only send messages if the agent explicitly chose to respond to user
     if (!hasUserMessages) {
-      completionLogger.info("Interaction agent chose not to respond to user");
       return;
     }
 
@@ -277,8 +210,7 @@ export const processAgentCompletion = async (
       loopMessageIds.push(...sendResult.loopMessageIds);
     }
 
-    completionLogger.info("Successfully sent messages to user", {
-      loopMessageIds,
+    completionLogger.info("Sent messages to user", {
       messageCount: messagesToUser.length,
     });
   } catch (error) {

@@ -23,16 +23,17 @@ export const generateResponse = async (
       conversationId: conversation.id,
       interactionAgentId,
     })
-    .info("Starting response generation", {
-      isGroup: conversation.isGroup,
-      participantCount: participants.length,
-      conversationLength: formattedConversation.length,
-    });
+    .info("Generating response");
 
   const system = `
 ${basePrompt}
 
 ${conversation.isGroup ? "You are in a group conversation." : "You are in a 1-on-1 conversation with the user."}
+
+## Conversation Flow
+
+- The only messages a user can see are the ones you send via \`send_message_to_user\` and are represented in memory by <poppy_reply>
+- If an agent gives you information, the user CANNOT SEE IT - you'll need to relay it to the user via \`send_message_to_user\`
 
 ## TOOLS
 
@@ -51,6 +52,7 @@ ${conversation.isGroup ? "You are in a group conversation." : "You are in a 1-on
 - \`send_message_to_user(message)\` records a natural-language reply for the user to read. Use it for acknowledgements, status updates, confirmations, or wrap-ups.
 - You can choose NOT to use this tool if you want to just process information internally without responding to the user.
 - The user can ONLY see messages you send via this tool.
+- Ensure you send a FULL message to the user
 
 ### Wait Tool Usage
 
@@ -95,21 +97,6 @@ This conversation history may have gaps. It may start from the middle of a conve
 ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
 `;
 
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Creating ToolLoopAgent with tools", {
-      tools: [
-        "send_message_to_agent",
-        "send_message_to_user",
-        "wait",
-        "webSearch",
-      ],
-      maxSteps: 10,
-    });
-
   const agent = new ToolLoopAgent({
     model: gemini25,
     instructions: system,
@@ -127,13 +114,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
     stopWhen: stepCountIs(10),
   });
 
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Calling agent.generate with formatted conversation");
-
   const result = await agent.generate({
     messages: [
       {
@@ -148,25 +128,13 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
       conversationId: conversation.id,
       interactionAgentId,
     })
-    .info("Agent generation completed", {
-      toolResultCount: result.toolResults?.length || 0,
-      usage: result.usage,
+    .info("Agent completed", {
       output: result.output,
-      steps: result.steps,
+      usage: result.usage,
     });
 
   // Extract messages to user from tool results
   const messagesToUser: string[] = [];
-
-  logger
-    .withTags({
-      conversationId: conversation.id,
-      interactionAgentId,
-    })
-    .info("Extracting messages to user from tool results", {
-      toolResultCount: result.toolResults?.length || 0,
-      stepsCount: result.steps?.length || 0,
-    });
 
   // Extract tool results from steps (where they're actually stored)
   if (result.steps && result.steps.length > 0) {
@@ -177,31 +145,12 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
             item.type === "tool-result" &&
             item.toolName === "send_message_to_user"
           ) {
-            logger
-              .withTags({
-                conversationId: conversation.id,
-                interactionAgentId,
-              })
-              .info("Processing tool result from step", {
-                toolName: item.toolName,
-                hasOutput: !!item.output,
-              });
-
             const output = item.output as {
               type: "send_to_user";
               content: string;
             };
             if (output?.type === "send_to_user" && output.content) {
               messagesToUser.push(output.content);
-              logger
-                .withTags({
-                  conversationId: conversation.id,
-                  interactionAgentId,
-                })
-                .info("Found send_message_to_user result", {
-                  contentLength: output.content.length,
-                  content: output.content.substring(0, 100),
-                });
             }
           }
         }
@@ -214,10 +163,9 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
       conversationId: conversation.id,
       interactionAgentId,
     })
-    .info("Completed response generation", {
-      messagesToUserCount: messagesToUser.length,
-      hasUserMessages: messagesToUser.length > 0,
-      usage: result.usage,
+    .info("Response generated", {
+      messageCount: messagesToUser.length,
+      messages: messagesToUser,
     });
 
   return {
