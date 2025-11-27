@@ -25,6 +25,7 @@
     "@poppy/schemas": "workspace:*",
     "@poppy/types": "workspace:*",
     "ai": "catalog:",
+    "dayjs": "^1.11.19",
     "drizzle-orm": "catalog:",
     "exa-js": "^1.9.3",
     "hono": "^4.6.14",

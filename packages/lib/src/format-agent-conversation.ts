@@ -1,4 +1,5 @@
 import type { Agent, Message, Part } from "@poppy/db";
+import dayjs from "dayjs";
 
 export interface AgentMessageItem {
   fromAgent: Agent;
@@ -79,12 +80,13 @@ export const formatAgentConversation = (
   let formatted = "<conversation_history>\n";
 
   for (const item of allItems) {
+    const timestamp = dayjs(item.timestamp).format("YYYY-MM-DD HH:mm:ss");
     if (item.type === "user_message") {
-      formatted += `<user_message>\n${item.content}\n</user_message>\n\n`;
+      formatted += `<user_message timestamp="${timestamp}">\n${item.content}\n</user_message>\n\n`;
     } else if (item.type === "poppy_reply") {
-      formatted += `<poppy_reply>\n${item.content}\n</poppy_reply>\n\n`;
+      formatted += `<poppy_reply timestamp="${timestamp}">\n${item.content}\n</poppy_reply>\n\n`;
     } else if (item.type === "agent_message") {
-      formatted += `<agent_message>\n${item.content}\n</agent_message>\n\n`;
+      formatted += `<agent_message timestamp="${timestamp}">\n${item.content}\n</agent_message>\n\n`;
     }
   }
 
@@ -97,10 +99,16 @@ export const formatAgentConversation = (
       currentMessage.parts,
       isGroup,
     );
-    formatted += `<new_user_message>\n${content}\n</new_user_message>`;
+    const timestamp = dayjs(currentMessage.message.createdAt).format(
+      "YYYY-MM-DD HH:mm:ss",
+    );
+    formatted += `<new_user_message timestamp="${timestamp}">\n${content}\n</new_user_message>`;
   } else if (currentAgentMessage) {
     const content = formatAgentMessageContent(currentAgentMessage);
-    formatted += `<new_agent_message>\n${content}\n</new_agent_message>`;
+    const timestamp = dayjs(currentAgentMessage.message.createdAt).format(
+      "YYYY-MM-DD HH:mm:ss",
+    );
+    formatted += `<new_agent_message timestamp="${timestamp}">\n${content}\n</new_agent_message>`;
   }
 
   return formatted;
