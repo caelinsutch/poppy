@@ -30,7 +30,7 @@ export const processAgentCompletion = async (
     success,
   });
 
-  completionLogger.info(input)
+  completionLogger.info(input);
 
   try {
     // Get the execution agent
@@ -178,7 +178,7 @@ export const processAgentCompletion = async (
     });
 
     // Generate response from interaction agent
-    const { messagesToUser, hasUserMessages, } = await generateResponse(
+    const { messagesToUser, hasUserMessages } = await generateResponse(
       formattedConversation,
       {
         conversation,
