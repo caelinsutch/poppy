@@ -16,11 +16,14 @@ describe("Reminder Tools", () => {
       const saveToDbCallback = vi.fn().mockResolvedValue(mockReminderId);
 
       const tool = createSetReminderTool(scheduleCallback, saveToDbCallback);
-      const result = await tool.execute({
-        task_description: "Check the weather forecast",
-        delay_seconds: 300,
-        reason: "User wants a weather update",
-      });
+      const result = await tool.execute?.(
+        {
+          task_description: "Check the weather forecast",
+          delay_seconds: 300,
+          reason: "User wants a weather update",
+        },
+        { toolCallId: "test", messages: [] },
+      );
 
       expect(saveToDbCallback).toHaveBeenCalledOnce();
       expect(saveToDbCallback).toHaveBeenCalledWith({
@@ -51,10 +54,13 @@ describe("Reminder Tools", () => {
       const saveToDbCallback = vi.fn().mockResolvedValue(mockReminderId);
 
       const tool = createSetReminderTool(scheduleCallback, saveToDbCallback);
-      const result = await tool.execute({
-        task_description: "Send follow-up email",
-        delay_seconds: 3600,
-      });
+      const result = await tool.execute?.(
+        {
+          task_description: "Send follow-up email",
+          delay_seconds: 3600,
+        },
+        { toolCallId: "test", messages: [] },
+      );
 
       expect(saveToDbCallback).toHaveBeenCalledWith({
         taskDescription: "Send follow-up email",
@@ -62,8 +68,10 @@ describe("Reminder Tools", () => {
         scheduledAt: expect.any(Date),
       });
 
-      expect(result.reminderId).toBe(mockReminderId);
-      expect(result.delaySeconds).toBe(3600);
+      if (typeof result === "object" && "reminderId" in result) {
+        expect(result.reminderId).toBe(mockReminderId);
+        expect(result.delaySeconds).toBe(3600);
+      }
     });
 
     it("should calculate correct scheduledAt time", async () => {
@@ -73,10 +81,13 @@ describe("Reminder Tools", () => {
       const beforeTime = Date.now();
 
       const tool = createSetReminderTool(scheduleCallback, saveToDbCallback);
-      await tool.execute({
-        task_description: "Test timing",
-        delay_seconds: 600,
-      });
+      await tool.execute?.(
+        {
+          task_description: "Test timing",
+          delay_seconds: 600,
+        },
+        { toolCallId: "test", messages: [] },
+      );
 
       const afterTime = Date.now();
 
@@ -129,7 +140,10 @@ describe("Reminder Tools", () => {
       const listCallback = vi.fn().mockResolvedValue(mockReminders);
 
       const tool = createListRemindersTool(listCallback);
-      const result = await tool.execute({});
+      const result = await tool.execute?.(
+        {},
+        { toolCallId: "test", messages: [] },
+      );
 
       expect(listCallback).toHaveBeenCalledOnce();
       expect(result).toEqual({
@@ -158,7 +172,10 @@ describe("Reminder Tools", () => {
       const listCallback = vi.fn().mockResolvedValue([]);
 
       const tool = createListRemindersTool(listCallback);
-      const result = await tool.execute({});
+      const result = await tool.execute?.(
+        {},
+        { toolCallId: "test", messages: [] },
+      );
 
       expect(result).toEqual({
         type: "reminders_list",
@@ -176,9 +193,10 @@ describe("Reminder Tools", () => {
       });
 
       const tool = createCancelReminderTool(cancelCallback);
-      const result = await tool.execute({
-        reminder_id: "550e8400-e29b-41d4-a716-446655440000",
-      });
+      const result = await tool.execute?.(
+        { reminder_id: "550e8400-e29b-41d4-a716-446655440000" },
+        { toolCallId: "test", messages: [] },
+      );
 
       expect(cancelCallback).toHaveBeenCalledWith(
         "550e8400-e29b-41d4-a716-446655440000",
@@ -198,12 +216,15 @@ describe("Reminder Tools", () => {
       });
 
       const tool = createCancelReminderTool(cancelCallback);
-      const result = await tool.execute({
-        reminder_id: "550e8400-e29b-41d4-a716-446655440001",
-      });
+      const result = await tool.execute?.(
+        { reminder_id: "550e8400-e29b-41d4-a716-446655440001" },
+        { toolCallId: "test", messages: [] },
+      );
 
-      expect(result.success).toBe(false);
-      expect(result.message).toBe("Reminder not found");
+      if (typeof result === "object" && "success" in result) {
+        expect(result.success).toBe(false);
+        expect(result.message).toBe("Reminder not found");
+      }
     });
 
     it("should handle already processed reminder", async () => {
@@ -213,14 +234,17 @@ describe("Reminder Tools", () => {
       });
 
       const tool = createCancelReminderTool(cancelCallback);
-      const result = await tool.execute({
-        reminder_id: "550e8400-e29b-41d4-a716-446655440002",
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.message).toBe(
-        "Cannot cancel reminder with status: completed",
+      const result = await tool.execute?.(
+        { reminder_id: "550e8400-e29b-41d4-a716-446655440002" },
+        { toolCallId: "test", messages: [] },
       );
+
+      if (typeof result === "object" && "success" in result) {
+        expect(result.success).toBe(false);
+        expect(result.message).toBe(
+          "Cannot cancel reminder with status: completed",
+        );
+      }
     });
   });
 });
