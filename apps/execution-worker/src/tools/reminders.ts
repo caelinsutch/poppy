@@ -48,36 +48,41 @@ The reminder will fire after the specified delay, and you will be re-invoked wit
         taskDescriptionLength: task_description.length,
       });
 
-      const scheduledAt = new Date(Date.now() + delay_seconds * 1000);
+      try {
+        const scheduledAt = new Date(Date.now() + delay_seconds * 1000);
 
-      const context: Record<string, unknown> = {};
-      if (reason) {
-        context.reason = reason;
+        const context: Record<string, unknown> = {};
+        if (reason) {
+          context.reason = reason;
+        }
+
+        const reminderId = await saveToDbCallback({
+          taskDescription: task_description,
+          context,
+          scheduledAt,
+        });
+
+        const doScheduleId = await scheduleCallback({
+          delaySeconds: delay_seconds,
+          reminderId,
+        });
+
+        logger.info("Reminder scheduled successfully", {
+          reminderId,
+          doScheduleId,
+          scheduledAt: scheduledAt.toISOString(),
+        });
+
+        return {
+          type: "reminder_scheduled" as const,
+          reminderId,
+          scheduledAt: scheduledAt.toISOString(),
+          delaySeconds: delay_seconds,
+        };
+      } catch (error) {
+        logger.error("Failed to schedule reminder", { error });
+        throw error;
       }
-
-      const reminderId = await saveToDbCallback({
-        taskDescription: task_description,
-        context,
-        scheduledAt,
-      });
-
-      const doScheduleId = await scheduleCallback({
-        delaySeconds: delay_seconds,
-        reminderId,
-      });
-
-      logger.info("Reminder scheduled successfully", {
-        reminderId,
-        doScheduleId,
-        scheduledAt: scheduledAt.toISOString(),
-      });
-
-      return {
-        type: "reminder_scheduled" as const,
-        reminderId,
-        scheduledAt: scheduledAt.toISOString(),
-        delaySeconds: delay_seconds,
-      };
     },
   });
 };

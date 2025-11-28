@@ -91,6 +91,11 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
         delaySeconds: number;
         reminderId: string;
       }) => {
+        logger.info("ExecutionAgent: Scheduling reminder", {
+          delaySeconds: params.delaySeconds,
+          reminderId: params.reminderId,
+        });
+
         const schedule = await this.schedule(
           params.delaySeconds,
           "processReminder",
