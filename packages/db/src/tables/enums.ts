@@ -42,3 +42,11 @@ export const agentMessageTypeEnum = pgEnum("agent_message_type", [
   "error", // Execution -> Interaction: error occurred
   "cancellation", // Interaction -> Execution: cancel task
 ]);
+
+export const reminderStatusEnum = pgEnum("reminder_status", [
+  "pending", // Scheduled but not yet fired
+  "processing", // Currently being processed
+  "completed", // Successfully executed
+  "failed", // Execution failed
+  "cancelled", // Cancelled by user or system
+]);

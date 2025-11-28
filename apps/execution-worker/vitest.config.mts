@@ -36,6 +36,13 @@ export default defineWorkersProject({
               process.env.DATABASE_URL ||
               "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
           },
+          serviceBindings: {
+            // Mock the INTERACTION_WORKER service for tests
+            INTERACTION_WORKER: () =>
+              new Response(JSON.stringify({ success: true }), {
+                headers: { "Content-Type": "application/json" },
+              }),
+          },
         },
       },
     },

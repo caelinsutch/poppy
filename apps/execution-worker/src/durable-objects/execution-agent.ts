@@ -1,13 +1,19 @@
-import { getDb } from "@poppy/db";
+import { getDb, reminders } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { Agent, callable } from "agents";
 import { stepCountIs, ToolLoopAgent } from "ai";
+import { and, eq } from "drizzle-orm";
 import { gemini25 } from "../clients/ai";
 import type { WorkerEnv } from "../context";
 import { updateAgentStatus } from "../services/agent-manager";
+import {
+  createCancelReminderTool,
+  createListRemindersTool,
+  createSetReminderTool,
+} from "../tools/reminders";
 import { createResearchTool } from "../tools/research";
 import { createWaitTool } from "../tools/wait";
-import type { ExecutionState, TaskInput } from "../types";
+import type { ExecutionState, ReminderPayload, TaskInput } from "../types";
 
 export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   initialState: ExecutionState = {
@@ -78,6 +84,89 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
           status: agentRecord.status,
         });
 
+      // Create reminder tool callbacks
+      const doId = this.ctx.id.toString();
+
+      const scheduleCallback = async (params: {
+        delaySeconds: number;
+        reminderId: string;
+      }) => {
+        const schedule = await this.schedule(
+          params.delaySeconds,
+          "processReminder",
+          { reminderId: params.reminderId },
+        );
+
+        // Update the reminder with the DO schedule ID
+        await db
+          .update(reminders)
+          .set({ doScheduleId: schedule.id })
+          .where(eq(reminders.id, params.reminderId));
+
+        return schedule.id;
+      };
+
+      const saveToDbCallback = async (params: {
+        taskDescription: string;
+        context: Record<string, unknown>;
+        scheduledAt: Date;
+      }) => {
+        const [reminder] = await db
+          .insert(reminders)
+          .values({
+            executionAgentDoId: doId,
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+            taskDescription: params.taskDescription,
+            context: params.context,
+            scheduledAt: params.scheduledAt,
+            status: "pending",
+          })
+          .returning();
+
+        return reminder.id;
+      };
+
+      const listCallback = async () => {
+        return db.query.reminders.findMany({
+          where: and(
+            eq(reminders.executionAgentDoId, doId),
+            eq(reminders.status, "pending"),
+          ),
+          orderBy: (reminders, { asc }) => [asc(reminders.scheduledAt)],
+        });
+      };
+
+      const cancelCallback = async (reminderId: string) => {
+        const reminder = await db.query.reminders.findFirst({
+          where: eq(reminders.id, reminderId),
+        });
+
+        if (!reminder) {
+          return { success: false, message: "Reminder not found" };
+        }
+
+        if (reminder.status !== "pending") {
+          return {
+            success: false,
+            message: `Cannot cancel reminder with status: ${reminder.status}`,
+          };
+        }
+
+        // Cancel the DO schedule if it exists
+        if (reminder.doScheduleId) {
+          await this.cancelSchedule(reminder.doScheduleId);
+        }
+
+        // Update PostgreSQL
+        await db
+          .update(reminders)
+          .set({ status: "cancelled" })
+          .where(eq(reminders.id, reminderId));
+
+        return { success: true, message: "Reminder cancelled" };
+      };
+
       // Create agentic loop with tools
       logger
         .withTags({
@@ -85,7 +174,13 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
           conversationId: input.conversationId,
         })
         .info("ExecutionAgent: Creating ToolLoopAgent", {
-          availableTools: ["research", "wait"],
+          availableTools: [
+            "research",
+            "wait",
+            "set_reminder",
+            "list_reminders",
+            "cancel_reminder",
+          ],
           maxSteps: 20,
         });
 
@@ -109,6 +204,9 @@ Purpose: ${agentRecord?.purpose || "task execution"}
 # Available Tools
 - research: Search the web for information using Exa
 - wait: Pause execution for a specified number of seconds
+- set_reminder: Schedule a future task or reminder (min 60 seconds, max 30 days)
+- list_reminders: List all pending reminders
+- cancel_reminder: Cancel a pending reminder by ID
 
 # Guidelines
 1. Analyze the instructions carefully before taking action
@@ -116,12 +214,19 @@ Purpose: ${agentRecord?.purpose || "task execution"}
 3. Be thorough and accurate in your execution
 4. Provide clear, concise responses about what you accomplished
 5. If you encounter errors, explain what went wrong and what you tried
+6. Use set_reminder when the user asks to be reminded about something or when you need to follow up later
 
 # Current Task
 ${input.taskDescription}`,
         tools: {
           research: createResearchTool(this.env.EXASEARCH_API_KEY),
           wait: createWaitTool(),
+          set_reminder: createSetReminderTool(
+            scheduleCallback,
+            saveToDbCallback,
+          ),
+          list_reminders: createListRemindersTool(listCallback),
+          cancel_reminder: createCancelReminderTool(cancelCallback),
         },
         stopWhen: stepCountIs(20),
       });
@@ -353,5 +458,131 @@ ${input.taskDescription}`,
       success: true,
       message: "Task execution started in background",
     };
+  }
+
+  /**
+   * Process a scheduled reminder
+   * Called automatically by the agents library when a schedule fires
+   */
+  async processReminder(payload: ReminderPayload): Promise<void> {
+    const { reminderId } = payload;
+
+    logger.info("ExecutionAgent: Processing reminder", { reminderId });
+
+    const db = getDb(this.env.HYPERDRIVE.connectionString);
+
+    try {
+      // Fetch reminder from PostgreSQL
+      const reminder = await db.query.reminders.findFirst({
+        where: eq(reminders.id, reminderId),
+      });
+
+      if (!reminder) {
+        logger.error("ExecutionAgent: Reminder not found", { reminderId });
+        return;
+      }
+
+      if (reminder.status !== "pending") {
+        logger.warn("ExecutionAgent: Reminder already processed or cancelled", {
+          reminderId,
+          status: reminder.status,
+        });
+        return;
+      }
+
+      // Mark as processing
+      await db
+        .update(reminders)
+        .set({ status: "processing", processedAt: new Date() })
+        .where(eq(reminders.id, reminderId));
+
+      // Check if agent is busy - if so, reschedule with backoff
+      if (this.state.isExecuting) {
+        const backoffSeconds = Math.min(60 * 2 ** reminder.retryCount, 3600); // Max 1 hour
+
+        logger.info("ExecutionAgent: Agent busy, rescheduling reminder", {
+          reminderId,
+          backoffSeconds,
+          retryCount: reminder.retryCount,
+        });
+
+        // Reschedule
+        await this.schedule(backoffSeconds, "processReminder", {
+          reminderId,
+        });
+
+        // Update reminder for retry
+        await db
+          .update(reminders)
+          .set({
+            status: "pending",
+            retryCount: reminder.retryCount + 1,
+            scheduledAt: new Date(Date.now() + backoffSeconds * 1000),
+          })
+          .where(eq(reminders.id, reminderId));
+
+        return;
+      }
+
+      // Execute the reminder task via executeTaskInBackground
+      logger.info("ExecutionAgent: Executing reminder task", {
+        reminderId,
+        taskDescription: reminder.taskDescription.substring(0, 100),
+      });
+
+      // Run the task in background
+      this.ctx.waitUntil(
+        this.executeTaskInBackground({
+          agentId: reminder.agentId,
+          conversationId: reminder.conversationId,
+          taskDescription: `[SCHEDULED REMINDER] ${reminder.taskDescription}`,
+        })
+          .then(async () => {
+            // Mark reminder as completed after task finishes
+            await db
+              .update(reminders)
+              .set({ status: "completed", completedAt: new Date() })
+              .where(eq(reminders.id, reminderId));
+
+            logger.info("ExecutionAgent: Reminder completed", { reminderId });
+          })
+          .catch(async (error) => {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+
+            await db
+              .update(reminders)
+              .set({
+                status: "failed",
+                errorMessage,
+                completedAt: new Date(),
+              })
+              .where(eq(reminders.id, reminderId));
+
+            logger.error("ExecutionAgent: Reminder task failed", {
+              reminderId,
+              error: errorMessage,
+            });
+          }),
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      logger.error("ExecutionAgent: Failed to process reminder", {
+        reminderId,
+        error: errorMessage,
+      });
+
+      // Update status to failed
+      await db
+        .update(reminders)
+        .set({
+          status: "failed",
+          errorMessage,
+          completedAt: new Date(),
+        })
+        .where(eq(reminders.id, reminderId));
+    }
   }
 }
