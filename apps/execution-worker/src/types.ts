@@ -9,3 +9,8 @@ export type TaskInput = {
   taskDescription: string;
   conversationId: string;
 };
+
+// Payload for reminder callbacks (passed to processReminder via schedule())
+export type ReminderPayload = {
+  reminderId: string;
+};

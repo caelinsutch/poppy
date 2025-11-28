@@ -31,8 +31,7 @@
   "workspaces": {
     "packages": [
       "apps/*",
-      "packages/*",
-      "turbo/generators"
+      "packages/*"
     ],
     "catalog": {
       "typescript": "5.9.2",

@@ -16,7 +16,8 @@
     "deploy": "run-wrangler-deploy-production",
     "deploy:staging": "run-wrangler-deploy-staging",
     "typecheck": "run-tsc",
-    "cf-typegen": "run-wrangler-types"
+    "cf-typegen": "run-wrangler-types",
+    "test": "run-vitest run"
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "^1.2.0",
@@ -26,7 +27,7 @@
     "@poppy/lib": "workspace:*",
     "@poppy/schemas": "workspace:*",
     "@poppy/types": "workspace:*",
-    "agents": "^0.2.23",
+    "agents": "^0.2.24",
     "ai": "catalog:",
     "drizzle-orm": "catalog:",
     "exa-js": "^1.9.3",
@@ -36,7 +37,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.10.5",
+    "@cloudflare/vitest-pool-workers": "^0.10.11",
     "@poppy/tools": "workspace:*",
     "@poppy/typescript-config": "workspace:*",
     "dotenv": "^17.2.2",
