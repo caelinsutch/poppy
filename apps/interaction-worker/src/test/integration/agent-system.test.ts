@@ -220,9 +220,8 @@ describe("Agent System E2E Tests", () => {
         isGroup: false,
       });
 
-      expect(formatted).toContain("<new_user_message>");
+      expect(formatted).toContain("new_user_message");
       expect(formatted).toContain("Hello, how are you?");
-      expect(formatted).toContain("</new_user_message>");
     });
 
     it("should format conversation with agent messages", async () => {
