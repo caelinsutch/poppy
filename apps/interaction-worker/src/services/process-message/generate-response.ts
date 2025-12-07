@@ -1,14 +1,21 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
   createSendMessageToAgentTool,
+  createUpdateUserTimezoneTool,
   sendMessageToUser,
   wait,
 } from "../../tools";
 import { webSearch } from "../../tools/web-search";
 import type { ProcessMessageOptions } from "./types";
+
+// Initialize dayjs plugins for timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const generateResponse = async (
   formattedConversation: string,
@@ -18,16 +25,56 @@ export const generateResponse = async (
 ) => {
   const { conversation, participants, interactionAgentId, db, env } = options;
 
-  const currentTime = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  // Get the primary user (first participant for now, could be improved for group chats)
+  const primaryUser = participants[0];
+  const userTimezone = primaryUser?.timezone ?? "America/New_York";
+  const timezoneSource = primaryUser?.timezoneSource ?? "default";
+
+  // Format current time in user's timezone
+  const currentTimeInUserTz = dayjs()
+    .tz(userTimezone)
+    .format("YYYY-MM-DD HH:mm:ss");
+  const currentTimeUtc = dayjs().utc().format("YYYY-MM-DD HH:mm:ss");
+
+  // Helper to get friendly timezone name
+  const getFriendlyTimezone = (tz: string): string => {
+    const tzMap: Record<string, string> = {
+      "America/New_York": "Eastern",
+      "America/Chicago": "Central",
+      "America/Denver": "Mountain",
+      "America/Los_Angeles": "Pacific",
+      "America/Anchorage": "Alaska",
+      "Pacific/Honolulu": "Hawaii",
+      "America/Phoenix": "Arizona",
+    };
+    return tzMap[tz] ?? tz;
+  };
+
+  const friendlyTimezone = getFriendlyTimezone(userTimezone);
 
   const system = `
 ${basePrompt}
 
 ${conversation.isGroup ? "You are in a group conversation." : "You are in a 1-on-1 conversation with the user."}
 
+## User Timezone
+
+The user's timezone is set to: ${userTimezone} (${friendlyTimezone} time)
+Timezone source: ${timezoneSource} ${timezoneSource === "confirmed" ? "(user confirmed)" : timezoneSource === "inferred" ? "(inferred from area code - not yet confirmed)" : "(default - not yet confirmed)"}
+Current time in user's timezone: ${currentTimeInUserTz}
+Current time UTC: ${currentTimeUtc}
+
+### Timezone Confirmation
+When scheduling reminders or other time-sensitive tasks:
+- If the timezone source is NOT "confirmed", naturally ask the user to confirm their timezone before scheduling
+- Keep it casual, e.g., "Just to make sure I get the timing right, you're in ${friendlyTimezone} time, yeah?"
+- Once the user confirms, use the \`update_user_timezone\` tool to save their confirmed timezone
+- If they correct you, update with the correct timezone
+- After confirming, proceed with scheduling using their timezone
+
 ## Current Time
 
-Current time: ${currentTime}
+Current time (user's timezone): ${currentTimeInUserTz}
 
 All messages in the conversation include a timestamp attribute in the format "YYYY-MM-DD HH:mm:ss". Use these timestamps to understand the temporal context of the conversation and provide time-aware responses when relevant.
 
@@ -95,23 +142,42 @@ The user will only see your responses sent via \`send_message_to_user\`, so make
 This conversation history may have gaps. It may start from the middle of a conversation, or it may be missing messages. It may contain a summary of the previous conversation at the top. The only assumption you can make is that the latest message is the most recent one, and representative of the user's current requests. Address that message directly. The other messages are just for context.
 
 ## Participants
-${participants.map((p) => `- ${p.id}: ${p.phoneNumber}`).join("\n")}
+${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?? "America/New_York"}, source: ${p.timezoneSource ?? "default"})`).join("\n")}
 `;
+
+  // Build tools object, only including update_user_timezone if we have a primary user
+  const tools: Record<
+    string,
+    | ReturnType<typeof createSendMessageToAgentTool>
+    | typeof sendMessageToUser
+    | typeof wait
+    | typeof webSearch
+    | ReturnType<typeof createUpdateUserTimezoneTool>
+  > = {
+    send_message_to_agent: createSendMessageToAgentTool(
+      db,
+      interactionAgentId,
+      conversation.id,
+      env,
+      userTimezone,
+    ),
+    send_message_to_user: sendMessageToUser,
+    wait,
+    webSearch,
+  };
+
+  // Only add timezone tool if we have a primary user
+  if (primaryUser) {
+    tools.update_user_timezone = createUpdateUserTimezoneTool(
+      db,
+      primaryUser.id,
+    );
+  }
 
   const agent = new ToolLoopAgent({
     model: gemini25,
     instructions: system,
-    tools: {
-      send_message_to_agent: createSendMessageToAgentTool(
-        db,
-        interactionAgentId,
-        conversation.id,
-        env,
-      ),
-      send_message_to_user: sendMessageToUser,
-      wait,
-      webSearch,
-    },
+    tools,
     stopWhen: stepCountIs(10),
   });
 

@@ -9,6 +9,7 @@ import {
   parts,
   users,
 } from "@poppy/db";
+import { inferTimezoneFromAreaCode } from "@poppy/lib";
 import type { LoopMessageInboundPayload } from "@poppy/schemas";
 import { generateId, type TextPart, type UIMessage } from "ai";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -81,11 +82,20 @@ export const storeLoopMessages = async (
     // Find missing users
     const missingUsers = participantArray.filter((p) => !userMap.has(p));
 
-    // Batch create missing users
+    // Batch create missing users with timezone inference from area code
     if (missingUsers.length > 0) {
       const newUsers = await db
         .insert(users)
-        .values(missingUsers.map((phoneNumber) => ({ phoneNumber })))
+        .values(
+          missingUsers.map((phoneNumber) => {
+            const inferred = inferTimezoneFromAreaCode(phoneNumber);
+            return {
+              phoneNumber,
+              timezone: inferred?.timezone ?? "America/New_York",
+              timezoneSource: inferred ? "inferred" : "default",
+            };
+          }),
+        )
         .onConflictDoNothing({ target: users.phoneNumber })
         .returning();
 

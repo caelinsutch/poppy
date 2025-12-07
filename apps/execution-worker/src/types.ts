@@ -8,6 +8,8 @@ export type TaskInput = {
   agentId: string;
   taskDescription: string;
   conversationId: string;
+  // User's timezone for time-aware task execution (e.g., "America/Los_Angeles")
+  userTimezone?: string;
 };
 
 // Payload for reminder callbacks (passed to processReminder via schedule())
