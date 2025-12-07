@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   timezone: text("timezone").notNull().default("America/New_York"),
+  // How the timezone was determined: "default" (system default), "inferred" (from area code), "confirmed" (user confirmed)
+  timezoneSource: text("timezone_source").notNull().default("default"),
 });
 
 export const userPreferences = pgTable("user_preferences", {

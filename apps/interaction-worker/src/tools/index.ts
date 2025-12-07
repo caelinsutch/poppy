@@ -16,5 +16,6 @@ export type UIToolTypes = {
 
 export * from "./send-message-to-agent";
 export * from "./send-message-to-user";
+export * from "./update-user-timezone";
 export * from "./wait";
 export * from "./web-search";

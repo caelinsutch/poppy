@@ -2,8 +2,16 @@ import { getDb, reminders } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { Agent, callable } from "agents";
 import { stepCountIs, ToolLoopAgent } from "ai";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { and, eq } from "drizzle-orm";
 import { gemini25 } from "../clients/ai";
+
+// Initialize dayjs plugins for timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import type { WorkerEnv } from "../context";
 import { updateAgentStatus } from "../services/agent-manager";
 import {
@@ -189,6 +197,29 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
           maxSteps: 20,
         });
 
+      // Format timezone context if available
+      const userTimezone = input.userTimezone ?? "America/New_York";
+      const currentTimeInUserTz = dayjs()
+        .tz(userTimezone)
+        .format("YYYY-MM-DD HH:mm:ss");
+      const currentTimeUtc = dayjs().utc().format("YYYY-MM-DD HH:mm:ss");
+
+      // Helper to get friendly timezone name
+      const getFriendlyTimezone = (tz: string): string => {
+        const tzMap: Record<string, string> = {
+          "America/New_York": "Eastern",
+          "America/Chicago": "Central",
+          "America/Denver": "Mountain",
+          "America/Los_Angeles": "Pacific",
+          "America/Anchorage": "Alaska",
+          "Pacific/Honolulu": "Hawaii",
+          "America/Phoenix": "Arizona",
+        };
+        return tzMap[tz] ?? tz;
+      };
+
+      const friendlyTimezone = getFriendlyTimezone(userTimezone);
+
       const agent = new ToolLoopAgent({
         model: gemini25(this.env.OPENROUTER_API_KEY),
         instructions: `You are the assistant of Poke by the Interaction Company of California. You are the "execution engine" of Poke, helping complete tasks for Poke, while Poke talks to the user. Your job is to execute and accomplish a goal, and you do not have direct access to the user.
@@ -205,6 +236,17 @@ Before you call any tools, reason through why you are calling them by explaining
 
 Agent Name: ${agentName}
 Purpose: ${agentRecord?.purpose || "task execution"}
+
+# User Timezone Context
+User's timezone: ${userTimezone} (${friendlyTimezone} time)
+Current time in user's timezone: ${currentTimeInUserTz}
+Current time UTC: ${currentTimeUtc}
+
+When scheduling reminders or interpreting time-related requests:
+- All times mentioned by the user should be interpreted in their timezone (${friendlyTimezone})
+- When the user says "3pm", they mean 3pm ${friendlyTimezone} time
+- Calculate delay_seconds relative to the current time to schedule reminders correctly
+- Report scheduled times in the user's timezone for clarity
 
 # Available Tools
 - research: Search the web for information using Exa
