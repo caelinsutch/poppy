@@ -25,7 +25,7 @@ const waitFor = (ms: number): Promise<void> =>
 export const handleMessageInbound = async (
   options: MessageInboundHandlerOptions,
 ): Promise<void> => {
-  const { payload, doNamespace, db, ctx, env } = options;
+  const { payload, doNamespace, db, env } = options;
 
   if (payload.alert_type !== "message_inbound") {
     throw new Error(
@@ -64,6 +64,18 @@ export const handleMessageInbound = async (
     messageCount: debouncedMessages.length,
     messageIds: debouncedMessages.map((m) => m.message_id),
   });
+
+  // Guard against empty debounced messages (race condition or cleared state)
+  if (debouncedMessages.length === 0) {
+    logger.warn(
+      "Debounced messages empty - possible race condition or cleared state",
+      {
+        conversationId,
+        currentMessageId: payload.message_id,
+      },
+    );
+    return;
+  }
 
   // Check if we're the last message (should process)
   const lastMessage = debouncedMessages[debouncedMessages.length - 1];
