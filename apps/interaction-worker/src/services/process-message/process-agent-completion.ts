@@ -2,7 +2,7 @@ import { agents, messages as messagesTable, parts } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { formatAgentConversation } from "@poppy/lib";
 import { generateId } from "ai";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { WorkerEnv } from "../../context";
 import type { Database } from "../../db/client";
 import { getOrCreateInteractionAgent } from "../agents";
@@ -205,6 +205,46 @@ export const processAgentCompletion = async (
 
     // Only send messages if the agent explicitly chose to respond to user
     if (!hasUserMessages) {
+      return;
+    }
+
+    // Guard: Don't send if there's a recent outbound message (prevents double responses)
+    const recentMessages = await db.query.messages.findMany({
+      where: eq(messagesTable.conversationId, conversationId),
+      orderBy: desc(messagesTable.createdAt),
+      limit: 5,
+    });
+
+    const recentOutbound = recentMessages.find((m: any) => m.isOutbound);
+    const agentMessageTime = newMessage.createdAt;
+
+    if (recentOutbound && recentOutbound.createdAt > agentMessageTime) {
+      completionLogger.info(
+        "Skipping response - newer outbound message already exists",
+        {
+          recentOutboundId: recentOutbound.id,
+          recentOutboundTime: recentOutbound.createdAt,
+          agentMessageTime,
+        },
+      );
+      return;
+    }
+
+    // Also check if a very recent outbound exists (within 10 seconds of now)
+    // This prevents double responses when the interaction agent both asked a question
+    // AND delegated to an execution agent in the same turn
+    const now = new Date();
+    const tenSecondsAgo = new Date(now.getTime() - 10000);
+
+    if (recentOutbound && recentOutbound.createdAt > tenSecondsAgo) {
+      completionLogger.info(
+        "Skipping response - outbound message sent within last 10 seconds",
+        {
+          recentOutboundId: recentOutbound.id,
+          recentOutboundTime: recentOutbound.createdAt,
+          threshold: tenSecondsAgo,
+        },
+      );
       return;
     }
 
