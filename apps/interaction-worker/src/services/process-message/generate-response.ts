@@ -5,6 +5,7 @@ import utc from "dayjs/plugin/utc";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
+  createGmailConnectTool,
   createSendMessageToAgentTool,
   createUpdateUserTimezoneTool,
   sendMessageToUser,
@@ -111,9 +112,20 @@ All messages in the conversation include a timestamp attribute in the format "YY
 
 ## Interaction Modes
 
-- When the input contains \`<new_user_message>\`, decide if you can answer outright. If you need help, first acknowledge the user and explain the next step with \`send_message_to_user\`, then call \`send_message_to_agent\` with clear instructions. Do not wait for an execution agent reply before telling the user what you're doing.
+- When the input contains \`<new_user_message>\`, decide if you can answer outright. If you need help from an agent:
+  1. First acknowledge the user briefly with \`send_message_to_user\` (e.g., "On it!" or "Let me check...")
+  2. Then call \`send_message_to_agent\` with clear instructions
+  3. CRITICAL: Do NOT ask clarifying questions if you're also delegating to an agent. Either ask the user for clarification and WAIT for their response, OR delegate to the agent and let them handle it. Never do both in the same turn - this causes duplicate responses.
 - When the input contains \`<new_agent_message>\`, treat each \`<agent_message>\` block as an execution agent result. Summarize the outcome for the user using \`send_message_to_user\`. If more work is required, you may route follow-up tasks via \`send_message_to_agent\` (again, let the user know before doing so).
 - The XML-like tags are just structure—do not echo them back to the user.
+
+## IMPORTANT: Avoiding Double Responses
+
+You must choose ONE of these paths per turn:
+1. **Clarify first**: Ask the user a question via \`send_message_to_user\` and do NOT call \`send_message_to_agent\`. Wait for user's answer.
+2. **Delegate immediately**: Send a brief acknowledgment via \`send_message_to_user\` and call \`send_message_to_agent\`. The agent will handle it.
+
+NEVER ask a clarifying question AND delegate to an agent in the same turn. This creates confusing duplicate messages for the user.
 
 ## Message Structure
 
@@ -153,6 +165,7 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
     | typeof wait
     | typeof webSearch
     | ReturnType<typeof createUpdateUserTimezoneTool>
+    | ReturnType<typeof createGmailConnectTool>
   > = {
     send_message_to_agent: createSendMessageToAgentTool(
       db,
@@ -166,12 +179,13 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
     webSearch,
   };
 
-  // Only add timezone tool if we have a primary user
+  // Only add user-specific tools if we have a primary user
   if (primaryUser) {
     tools.update_user_timezone = createUpdateUserTimezoneTool(
       db,
       primaryUser.id,
     );
+    tools.gmail_connect = createGmailConnectTool(db, primaryUser.id, env);
   }
 
   const agent = new ToolLoopAgent({
