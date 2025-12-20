@@ -15,6 +15,11 @@ dayjs.extend(timezone);
 import type { WorkerEnv } from "../context";
 import { updateAgentStatus } from "../services/agent-manager";
 import {
+  createGmailCheckTool,
+  createGmailTools,
+  getComposioUserIdForUser,
+} from "../tools/gmail";
+import {
   createCancelReminderTool,
   createListRemindersTool,
   createSetReminderTool,
@@ -27,6 +32,73 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
   initialState: ExecutionState = {
     isExecuting: false,
   };
+
+  /**
+   * Build the tools object for the agent, including Gmail tools if available
+   */
+  private async buildTools(
+    input: TaskInput,
+    db: ReturnType<typeof getDb>,
+    callbacks: {
+      scheduleCallback: (params: {
+        delaySeconds: number;
+        reminderId: string;
+      }) => Promise<string>;
+      saveToDbCallback: (params: {
+        taskDescription: string;
+        context: Record<string, unknown>;
+        scheduledAt: Date;
+      }) => Promise<string>;
+      listCallback: () => Promise<any[]>;
+      cancelCallback: (
+        reminderId: string
+      ) => Promise<{ success: boolean; message: string }>;
+    }
+  ) {
+    // Base tools that are always available
+    const tools: Record<string, any> = {
+      research: createResearchTool(this.env.EXASEARCH_API_KEY),
+      wait: createWaitTool(),
+      set_reminder: createSetReminderTool(
+        callbacks.scheduleCallback,
+        callbacks.saveToDbCallback
+      ),
+      list_reminders: createListRemindersTool(callbacks.listCallback),
+      cancel_reminder: createCancelReminderTool(callbacks.cancelCallback),
+    };
+
+    // Add Gmail tools if user has an active connection
+    if (input.userId) {
+      const composioUserId = await getComposioUserIdForUser(db, input.userId);
+      if (composioUserId) {
+        logger.info("Loading Gmail tools for user", {
+          userId: input.userId,
+          composioUserId,
+        });
+
+        const gmailTools = await createGmailTools(
+          this.env.COMPOSIO_API_KEY,
+          composioUserId
+        );
+
+        // Merge Gmail tools into the tools object
+        Object.assign(tools, gmailTools);
+
+        // Also add the Gmail check tool
+        tools.gmail_check = createGmailCheckTool(db, input.userId);
+
+        logger.info("Gmail tools loaded successfully", {
+          gmailToolCount: Object.keys(gmailTools).length,
+        });
+      } else {
+        logger.info("No active Gmail connection for user", {
+          userId: input.userId,
+        });
+      }
+    }
+
+    return tools;
+  }
 
   /**
    * Execute task in background and ping interaction worker when done
@@ -255,6 +327,18 @@ When scheduling reminders or interpreting time-related requests:
 - list_reminders: List all pending reminders
 - cancel_reminder: Cancel a pending reminder by ID
 
+# Handling Scheduled Reminders
+When your task starts with "[SCHEDULED REMINDER]", this means a previously scheduled reminder has FIRED. You should:
+1. Simply tell Poke to notify the user about this reminder
+2. Do NOT try to set a new reminder unless the user explicitly asks for it
+3. Do NOT ask clarifying questions - just deliver the reminder message
+4. Your output should just say what the reminder was about (e.g., "Tell the user: Pay off your J.Crew card!")
+
+Example:
+- Task: "[SCHEDULED REMINDER] Pay off Jcrew card"
+- Correct response: "Tell the user: Pay off your J.Crew card!"
+- WRONG response: "I need to set a reminder for..." or "When should I remind them?"
+
 # Guidelines
 1. Analyze the instructions carefully before taking action
 2. Use the appropriate tools to complete the task
@@ -262,19 +346,16 @@ When scheduling reminders or interpreting time-related requests:
 4. Provide clear, concise responses about what you accomplished
 5. If you encounter errors, explain what went wrong and what you tried
 6. Use set_reminder when the user asks to be reminded about something or when you need to follow up later
+7. When handling [SCHEDULED REMINDER] tasks, just deliver the notification - don't set new reminders
 
 # Current Task
 ${input.taskDescription}`,
-        tools: {
-          research: createResearchTool(this.env.EXASEARCH_API_KEY),
-          wait: createWaitTool(),
-          set_reminder: createSetReminderTool(
-            scheduleCallback,
-            saveToDbCallback,
-          ),
-          list_reminders: createListRemindersTool(listCallback),
-          cancel_reminder: createCancelReminderTool(cancelCallback),
-        },
+        tools: await this.buildTools(input, db, {
+          scheduleCallback,
+          saveToDbCallback,
+          listCallback,
+          cancelCallback,
+        }),
         stopWhen: stepCountIs(20),
       });
 
