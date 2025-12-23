@@ -23,6 +23,14 @@ export type SharedHonoEnv = {
    * Optional Sentry release version for logging
    */
   SENTRY_RELEASE?: string;
+  /**
+   * Composio API key for Gmail and other integrations
+   */
+  COMPOSIO_API_KEY: string;
+  /**
+   * Composio Gmail auth config ID (from Composio dashboard)
+   */
+  COMPOSIO_GMAIL_AUTH_CONFIG_ID: string;
 };
 /** Global Hono variables */
 export type SharedHonoVariables = {

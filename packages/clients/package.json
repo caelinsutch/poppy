@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@composio/core": "^0.2.6",
     "@poppy/schemas": "workspace:*",
     "wretch": "^2.11.0"
   },

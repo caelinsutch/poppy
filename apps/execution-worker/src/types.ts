@@ -10,6 +10,8 @@ export type TaskInput = {
   conversationId: string;
   // User's timezone for time-aware task execution (e.g., "America/Los_Angeles")
   userTimezone?: string;
+  // User ID for looking up integrations like Gmail
+  userId?: string;
 };
 
 // Payload for reminder callbacks (passed to processReminder via schedule())

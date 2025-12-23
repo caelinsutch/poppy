@@ -20,6 +20,8 @@
     "test": "run-vitest run"
   },
   "dependencies": {
+    "@composio/core": "^0.2.6",
+    "@composio/vercel": "^0.2.6",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "@poppy/clients": "workspace:*",
     "@poppy/db": "workspace:*",

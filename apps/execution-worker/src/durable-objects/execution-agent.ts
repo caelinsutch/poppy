@@ -51,9 +51,9 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
       }) => Promise<string>;
       listCallback: () => Promise<any[]>;
       cancelCallback: (
-        reminderId: string
+        reminderId: string,
       ) => Promise<{ success: boolean; message: string }>;
-    }
+    },
   ) {
     // Base tools that are always available
     const tools: Record<string, any> = {
@@ -61,7 +61,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
       wait: createWaitTool(),
       set_reminder: createSetReminderTool(
         callbacks.scheduleCallback,
-        callbacks.saveToDbCallback
+        callbacks.saveToDbCallback,
       ),
       list_reminders: createListRemindersTool(callbacks.listCallback),
       cancel_reminder: createCancelReminderTool(callbacks.cancelCallback),
@@ -78,7 +78,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
 
         const gmailTools = await createGmailTools(
           this.env.COMPOSIO_API_KEY,
-          composioUserId
+          composioUserId,
         );
 
         // Merge Gmail tools into the tools object
