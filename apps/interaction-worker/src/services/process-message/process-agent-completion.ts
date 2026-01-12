@@ -1,4 +1,10 @@
-import { agents, messages as messagesTable, parts } from "@poppy/db";
+import {
+  agents,
+  conversationParticipants,
+  messages as messagesTable,
+  parts,
+  users,
+} from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { formatAgentConversation } from "@poppy/lib";
 import { generateId } from "ai";
@@ -143,6 +149,15 @@ export const processAgentCompletion = async (
       throw new Error(`Conversation not found: ${conversationId}`);
     }
 
+    // Fetch participants for this conversation
+    const participantRows = await db
+      .select({ user: users })
+      .from(conversationParticipants)
+      .innerJoin(users, eq(users.id, conversationParticipants.userId))
+      .where(eq(conversationParticipants.conversationId, conversationId));
+
+    const participants = participantRows.map((row) => row.user);
+
     // Fetch the newly inserted message with its parts
     const newMessage = await db.query.messages.findFirst({
       where: eq(messagesTable.id, messageId),
@@ -190,7 +205,7 @@ export const processAgentCompletion = async (
           message: msg,
           parts: msg.parts,
         })),
-        participants: [],
+        participants,
         env,
         db,
         interactionAgentId: interactionAgent.id,
