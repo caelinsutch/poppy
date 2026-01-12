@@ -1,7 +1,9 @@
+import { userGmailConnections } from "@poppy/db";
 import { stepCountIs, ToolLoopAgent } from "ai";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
+import { eq } from "drizzle-orm";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
@@ -53,10 +55,27 @@ export const generateResponse = async (
 
   const friendlyTimezone = getFriendlyTimezone(userTimezone);
 
+  const integrations: string[] = [];
+  if (primaryUser) {
+    const gmailConnection = await db.query.userGmailConnections.findFirst({
+      where: eq(userGmailConnections.userId, primaryUser.id),
+    });
+    if (gmailConnection?.status === "active") {
+      integrations.push(`Gmail (${gmailConnection.email})`);
+    }
+  }
+
+  const integrationsContext =
+    integrations.length > 0
+      ? `## Connected Integrations\nThe user has connected: ${integrations.join(", ")}\nYou can help them with tasks related to these integrations by delegating to your agent.`
+      : `## Connected Integrations\nNo integrations connected yet. The user can connect Gmail using the gmail_connect tool.`;
+
   const system = `
 ${basePrompt}
 
 ${conversation.isGroup ? "You are in a group conversation." : "You are in a 1-on-1 conversation with the user."}
+
+${integrationsContext}
 
 ## User Timezone
 
@@ -65,13 +84,11 @@ Timezone source: ${timezoneSource} ${timezoneSource === "confirmed" ? "(user con
 Current time in user's timezone: ${currentTimeInUserTz}
 Current time UTC: ${currentTimeUtc}
 
-### Timezone Confirmation
-When scheduling reminders or other time-sensitive tasks:
-- If the timezone source is NOT "confirmed", naturally ask the user to confirm their timezone before scheduling
-- Keep it casual, e.g., "Just to make sure I get the timing right, you're in ${friendlyTimezone} time, yeah?"
-- Once the user confirms, use the \`update_user_timezone\` tool to save their confirmed timezone
-- If they correct you, update with the correct timezone
-- After confirming, proceed with scheduling using their timezone
+### Timezone Handling
+- Trust the user's timezone setting (whether inferred from area code or confirmed). Do NOT ask for confirmation unless there's a clear mismatch.
+- Only ask about timezone if the user explicitly mentions a different timezone or location that conflicts with the current setting.
+- If the user corrects you about their timezone, use the \`update_user_timezone\` tool to save the correct timezone.
+- When scheduling reminders, assume the user's current timezone is correct and proceed without asking for confirmation.
 
 ## Current Time
 
@@ -212,16 +229,20 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
     for (const step of result.steps) {
       if (step.content && Array.isArray(step.content)) {
         for (const item of step.content) {
-          if (
-            item.type === "tool-result" &&
-            item.toolName === "send_message_to_user"
-          ) {
-            const output = item.output as {
-              type: "send_to_user";
-              content: string;
-            };
-            if (output?.type === "send_to_user" && output.content) {
-              messagesToUser.push(output.content);
+          if (item.type === "tool-result") {
+            if (item.toolName === "send_message_to_user") {
+              const output = item.output as {
+                type: "send_to_user";
+                content: string;
+              };
+              if (output?.type === "send_to_user" && output.content) {
+                messagesToUser.push(output.content);
+              }
+            }
+
+            const output = item.output as { sendToUser?: string } | null;
+            if (output?.sendToUser) {
+              messagesToUser.push(output.sendToUser);
             }
           }
         }

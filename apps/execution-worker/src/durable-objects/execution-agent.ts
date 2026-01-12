@@ -317,8 +317,13 @@ Current time UTC: ${currentTimeUtc}
 When scheduling reminders or interpreting time-related requests:
 - All times mentioned by the user should be interpreted in their timezone (${friendlyTimezone})
 - When the user says "3pm", they mean 3pm ${friendlyTimezone} time
-- Calculate delay_seconds relative to the current time to schedule reminders correctly
+- If the user doesn't specify a time (e.g., "remind me tomorrow to call mom"), default to 10:00 AM in their timezone
+- If the user says "tomorrow" or a specific date without time, use 10:00 AM as the default time
+- Calculate delay_seconds by computing the difference between the target time and the current time (${currentTimeInUserTz})
+- For example, if it's currently 2:00 PM and the user wants a reminder at 3:00 PM, delay_seconds = 3600 (1 hour)
+- For "tomorrow at 10am": calculate the number of seconds from now until 10:00 AM tomorrow in ${friendlyTimezone} time
 - Report scheduled times in the user's timezone for clarity
+- IMPORTANT: Always double-check your delay_seconds calculation to ensure the reminder fires at the correct time
 
 # Available Tools
 - research: Search the web for information using Exa

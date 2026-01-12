@@ -154,6 +154,7 @@ export const createGmailConnectTool = (
           type: "gmail_connect_initiated" as const,
           redirectUrl: connectionRequest.redirectUrl,
           message: `To connect your Gmail, please click this link and authorize access: ${connectionRequest.redirectUrl}`,
+          sendToUser: `Here's your Gmail setup link: ${connectionRequest.redirectUrl}`,
         };
       } catch (error) {
         const errorMessage =
