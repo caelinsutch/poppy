@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import type { App } from "./context";
 import { createDatabaseClient } from "./db/client";
 import { logger } from "./helpers/logger";
+import { handleEmailTrigger } from "./services/email-trigger-handler";
 
 // Export Durable Object
 export { ExecutionAgent } from "./durable-objects/execution-agent";
@@ -25,7 +26,6 @@ app.get("/health", async (c) => {
       env: c.env,
     });
     const db = createDatabaseClient(c.env);
-    // Simple query to verify DB connection
     await db.execute("SELECT 1");
 
     return c.json({
@@ -46,6 +46,27 @@ app.get("/health", async (c) => {
       },
       503,
     );
+  }
+});
+
+app.post("/api/webhooks/composio", async (c) => {
+  const webhookLogger = logger.withTags({ module: "composio-webhook" });
+
+  try {
+    const body = await c.req.json();
+
+    webhookLogger.info("Received Composio webhook", {
+      event: body.event,
+      triggerName: body.data?.triggerName,
+    });
+
+    const result = await handleEmailTrigger(body, c.env);
+    return c.json(result);
+  } catch (error) {
+    webhookLogger.error("Error processing Composio webhook", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return c.json({ success: false, message: "Internal error" }, 500);
   }
 });
 
