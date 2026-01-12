@@ -21,6 +21,7 @@ describe("Reminder Tools", () => {
           task_description: "Check the weather forecast",
           delay_seconds: 300,
           reason: "User wants a weather update",
+          recurrence: "none",
         },
         { toolCallId: "test", messages: [] },
       );
@@ -30,6 +31,7 @@ describe("Reminder Tools", () => {
         taskDescription: "Check the weather forecast",
         context: { reason: "User wants a weather update" },
         scheduledAt: expect.any(Date),
+        recurrence: "none",
       });
 
       expect(scheduleCallback).toHaveBeenCalledOnce();
@@ -43,6 +45,7 @@ describe("Reminder Tools", () => {
         reminderId: mockReminderId,
         scheduledAt: expect.any(String),
         delaySeconds: 300,
+        recurrence: "none",
       });
     });
 
@@ -58,6 +61,7 @@ describe("Reminder Tools", () => {
         {
           task_description: "Send follow-up email",
           delay_seconds: 3600,
+          recurrence: "none",
         },
         { toolCallId: "test", messages: [] },
       );
@@ -66,6 +70,7 @@ describe("Reminder Tools", () => {
         taskDescription: "Send follow-up email",
         context: {},
         scheduledAt: expect.any(Date),
+        recurrence: "none",
       });
 
       if (typeof result === "object" && "reminderId" in result) {
@@ -85,6 +90,7 @@ describe("Reminder Tools", () => {
         {
           task_description: "Test timing",
           delay_seconds: 600,
+          recurrence: "none",
         },
         { toolCallId: "test", messages: [] },
       );
@@ -113,6 +119,7 @@ describe("Reminder Tools", () => {
           context: { priority: "high" },
           scheduledAt: new Date("2025-01-01T12:00:00Z"),
           status: "pending",
+          recurrence: "none",
           createdAt: new Date("2025-01-01T10:00:00Z"),
           processedAt: null,
           completedAt: null,
@@ -129,6 +136,7 @@ describe("Reminder Tools", () => {
           context: null,
           scheduledAt: new Date("2025-01-01T14:00:00Z"),
           status: "pending",
+          recurrence: "daily",
           createdAt: new Date("2025-01-01T11:00:00Z"),
           processedAt: null,
           completedAt: null,

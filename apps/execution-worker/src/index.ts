@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import type { App } from "./context";
 import { createDatabaseClient } from "./db/client";
 import { logger } from "./helpers/logger";
-import { handleEmailTrigger } from "./services/email-trigger-handler";
+import { handleComposioWebhook } from "./services/composio-webhook-handler";
 
 // Export Durable Object
 export { ExecutionAgent } from "./durable-objects/execution-agent";
@@ -60,7 +60,7 @@ app.post("/api/webhooks/composio", async (c) => {
       triggerName: body.data?.triggerName,
     });
 
-    const result = await handleEmailTrigger(body, c.env);
+    const result = await handleComposioWebhook(body, c.env);
     return c.json(result);
   } catch (error) {
     webhookLogger.error("Error processing Composio webhook", {

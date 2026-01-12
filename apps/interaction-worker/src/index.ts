@@ -10,7 +10,6 @@ import { Hono } from "hono";
 import type { App, WorkerEnv } from "./context";
 import { createDatabaseClient } from "./db/client";
 import { logger } from "./helpers/logger";
-import { handleComposioWebhook } from "./services/composio/handle-oauth-callback";
 import { handleMessageInbound } from "./services/loop/loop-message-inbound-handler";
 import {
   type AgentCompletionInput,
@@ -148,14 +147,6 @@ app.post("/", async (c) => {
 // Error handlers
 app.onError(withOnError<App>());
 app.notFound(withNotFound<App>());
-
-app.post("/api/webhooks/composio", async (c) => {
-  const body = await c.req.json();
-  const db = createDatabaseClient(c.env);
-
-  const result = await handleComposioWebhook(body, db, c.env);
-  return c.json(result);
-});
 
 // Default export: WorkerEntrypoint class for both HTTP and RPC
 export default class extends WorkerEntrypoint<WorkerEnv> {
