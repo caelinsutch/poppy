@@ -6,6 +6,8 @@ import { z } from "zod";
 /**
  * Tool for scheduling a reminder
  */
+export type ReminderRecurrence = "none" | "daily" | "weekly" | "weekdays";
+
 export const createSetReminderTool = (
   scheduleCallback: (params: {
     delaySeconds: number;
@@ -15,6 +17,7 @@ export const createSetReminderTool = (
     taskDescription: string;
     context: Record<string, unknown>;
     scheduledAt: Date;
+    recurrence: ReminderRecurrence;
   }) => Promise<string>,
 ) => {
   return tool({
@@ -24,7 +27,8 @@ export const createSetReminderTool = (
 - A task needs to be retried after a delay
 - You want to follow up with the user at a specific time
 
-The reminder will fire after the specified delay, and you will be re-invoked with the reminder context.`,
+The reminder will fire after the specified delay, and you will be re-invoked with the reminder context.
+For recurring reminders, the reminder will automatically reschedule after firing.`,
     inputSchema: z.object({
       task_description: z
         .string()
@@ -34,17 +38,30 @@ The reminder will fire after the specified delay, and you will be re-invoked wit
       delay_seconds: z
         .number()
         .min(60)
-        .max(86400 * 30) // Max 30 days
+        .max(86400 * 30)
         .describe("Delay in seconds from now when to execute the reminder"),
       reason: z
         .string()
         .optional()
         .describe("Optional reason for setting this reminder"),
+      recurrence: z
+        .enum(["none", "daily", "weekly", "weekdays"])
+        .optional()
+        .default("none")
+        .describe(
+          "Recurrence pattern: none (one-time), daily, weekly, or weekdays (Mon-Fri)",
+        ),
     }),
-    execute: async ({ task_description, delay_seconds, reason }) => {
+    execute: async ({
+      task_description,
+      delay_seconds,
+      reason,
+      recurrence = "none",
+    }) => {
       logger.info("Set reminder tool called", {
         delay_seconds,
         reason,
+        recurrence,
         taskDescriptionLength: task_description.length,
       });
 
@@ -60,6 +77,7 @@ The reminder will fire after the specified delay, and you will be re-invoked wit
           taskDescription: task_description,
           context,
           scheduledAt,
+          recurrence,
         });
 
         const doScheduleId = await scheduleCallback({
@@ -71,6 +89,7 @@ The reminder will fire after the specified delay, and you will be re-invoked wit
           reminderId,
           doScheduleId,
           scheduledAt: scheduledAt.toISOString(),
+          recurrence,
         });
 
         return {
@@ -78,6 +97,7 @@ The reminder will fire after the specified delay, and you will be re-invoked wit
           reminderId,
           scheduledAt: scheduledAt.toISOString(),
           delaySeconds: delay_seconds,
+          recurrence,
         };
       } catch (error) {
         logger.error("Failed to schedule reminder", { error });

@@ -10,7 +10,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { agents } from "./agents";
-import { reminderStatusEnum } from "./enums";
+import { reminderRecurrenceEnum, reminderStatusEnum } from "./enums";
 import { conversations } from "./messaging";
 
 // Reminders scheduled by execution agents
@@ -44,6 +44,9 @@ export const reminders = pgTable(
 
     // Status tracking
     status: reminderStatusEnum("status").notNull().default("pending"),
+
+    // Recurrence pattern
+    recurrence: reminderRecurrenceEnum("recurrence").notNull().default("none"),
 
     // Timestamps
     createdAt: timestamp("created_at").notNull().defaultNow(),

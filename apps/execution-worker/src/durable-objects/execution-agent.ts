@@ -23,6 +23,7 @@ import {
   createCancelReminderTool,
   createListRemindersTool,
   createSetReminderTool,
+  type ReminderRecurrence,
 } from "../tools/reminders";
 import { createResearchTool } from "../tools/research";
 import { createWaitTool } from "../tools/wait";
@@ -48,6 +49,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
         taskDescription: string;
         context: Record<string, unknown>;
         scheduledAt: Date;
+        recurrence: ReminderRecurrence;
       }) => Promise<string>;
       listCallback: () => Promise<any[]>;
       cancelCallback: (
@@ -195,6 +197,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
         taskDescription: string;
         context: Record<string, unknown>;
         scheduledAt: Date;
+        recurrence: ReminderRecurrence;
       }) => {
         const [reminder] = await db
           .insert(reminders)
@@ -206,6 +209,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
             context: params.context,
             scheduledAt: params.scheduledAt,
             status: "pending",
+            recurrence: params.recurrence,
           })
           .returning();
 
@@ -594,6 +598,37 @@ ${input.taskDescription}`,
   }
 
   /**
+   * Calculate next scheduled time for recurring reminders
+   */
+  private calculateNextOccurrence(
+    recurrence: ReminderRecurrence,
+    currentScheduledAt: Date,
+  ): Date | null {
+    if (recurrence === "none") return null;
+
+    const next = dayjs(currentScheduledAt);
+
+    switch (recurrence) {
+      case "daily":
+        return next.add(1, "day").toDate();
+
+      case "weekly":
+        return next.add(1, "week").toDate();
+
+      case "weekdays": {
+        let nextDate = next.add(1, "day");
+        while (nextDate.day() === 0 || nextDate.day() === 6) {
+          nextDate = nextDate.add(1, "day");
+        }
+        return nextDate.toDate();
+      }
+
+      default:
+        return null;
+    }
+  }
+
+  /**
    * Process a scheduled reminder
    * Called automatically by the agents library when a schedule fires
    */
@@ -678,6 +713,52 @@ ${input.taskDescription}`,
               .where(eq(reminders.id, reminderId));
 
             logger.info("ExecutionAgent: Reminder completed", { reminderId });
+
+            const recurrence =
+              (reminder.recurrence as ReminderRecurrence) || "none";
+            const nextScheduledAt = this.calculateNextOccurrence(
+              recurrence,
+              reminder.scheduledAt,
+            );
+
+            if (nextScheduledAt) {
+              const delaySeconds = Math.max(
+                60,
+                Math.floor((nextScheduledAt.getTime() - Date.now()) / 1000),
+              );
+
+              const [newReminder] = await db
+                .insert(reminders)
+                .values({
+                  executionAgentDoId: this.ctx.id.toString(),
+                  agentId: reminder.agentId,
+                  conversationId: reminder.conversationId,
+                  taskDescription: reminder.taskDescription,
+                  context: reminder.context as Record<string, unknown>,
+                  scheduledAt: nextScheduledAt,
+                  status: "pending",
+                  recurrence,
+                })
+                .returning();
+
+              const schedule = await this.schedule(
+                delaySeconds,
+                "processReminder",
+                { reminderId: newReminder.id },
+              );
+
+              await db
+                .update(reminders)
+                .set({ doScheduleId: schedule.id })
+                .where(eq(reminders.id, newReminder.id));
+
+              logger.info("ExecutionAgent: Scheduled next recurring reminder", {
+                originalReminderId: reminderId,
+                newReminderId: newReminder.id,
+                recurrence,
+                nextScheduledAt: nextScheduledAt.toISOString(),
+              });
+            }
           })
           .catch(async (error) => {
             const errorMessage =

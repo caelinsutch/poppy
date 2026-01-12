@@ -50,3 +50,10 @@ export const reminderStatusEnum = pgEnum("reminder_status", [
   "failed", // Execution failed
   "cancelled", // Cancelled by user or system
 ]);
+
+export const reminderRecurrenceEnum = pgEnum("reminder_recurrence", [
+  "none", // One-time reminder
+  "daily", // Repeat every day
+  "weekly", // Repeat every week
+  "weekdays", // Repeat Mon-Fri
+]);
