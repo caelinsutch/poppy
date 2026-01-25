@@ -218,8 +218,22 @@ export const processAgentCompletion = async (
       messages: messagesToUser,
     });
 
-    // Only send messages if the agent explicitly chose to respond to user
-    if (!hasUserMessages) {
+    // If the interaction agent didn't produce messages but the execution agent failed,
+    // generate a fallback error message for the user
+    if (!hasUserMessages && !success) {
+      completionLogger.warn(
+        "Interaction agent did not produce messages for failed task, using fallback",
+        { error },
+      );
+      messagesToUser.push(
+        error
+          ? `I ran into an issue: ${error.length > 200 ? `${error.substring(0, 200)}...` : error}`
+          : "I ran into an issue while completing that task. Please try again.",
+      );
+    }
+
+    // Only send messages if we have something to send
+    if (messagesToUser.length === 0) {
       return;
     }
 
@@ -240,24 +254,6 @@ export const processAgentCompletion = async (
           recentOutboundId: recentOutbound.id,
           recentOutboundTime: recentOutbound.createdAt,
           agentMessageTime,
-        },
-      );
-      return;
-    }
-
-    // Also check if a very recent outbound exists (within 10 seconds of now)
-    // This prevents double responses when the interaction agent both asked a question
-    // AND delegated to an execution agent in the same turn
-    const now = new Date();
-    const tenSecondsAgo = new Date(now.getTime() - 10000);
-
-    if (recentOutbound && recentOutbound.createdAt > tenSecondsAgo) {
-      completionLogger.info(
-        "Skipping response - outbound message sent within last 10 seconds",
-        {
-          recentOutboundId: recentOutbound.id,
-          recentOutboundTime: recentOutbound.createdAt,
-          threshold: tenSecondsAgo,
         },
       );
       return;

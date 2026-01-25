@@ -36,8 +36,7 @@ export const getUserConnections = async (
       connections.items
         ?.filter((conn) => conn.status === "ACTIVE")
         .map((conn) => ({
-          app:
-            conn.appName || conn.appUniqueId || conn.toolkit?.slug || "unknown",
+          app: conn.toolkit?.slug || "unknown",
           connectionId: conn.id,
           status: conn.status,
         })) || []

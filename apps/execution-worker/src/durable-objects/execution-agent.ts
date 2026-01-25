@@ -450,6 +450,77 @@ ${input.taskDescription}`,
           usage: result.usage,
         });
 
+      // Check for tool errors in the result steps
+      const toolErrors: Array<{ toolName: string; error: string }> = [];
+      if (result.steps && result.steps.length > 0) {
+        for (const step of result.steps) {
+          if (step.content && Array.isArray(step.content)) {
+            for (const item of step.content) {
+              if (item.type === "tool-error") {
+                toolErrors.push({
+                  toolName: (item as any).toolName || "unknown",
+                  error: (item as any).error || "Unknown error",
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // If there were tool errors, treat this as a failed task
+      if (toolErrors.length > 0) {
+        const errorMessages = toolErrors
+          .map((e) => `${e.toolName}: ${e.error}`)
+          .join("; ");
+
+        logger
+          .withTags({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+          })
+          .warn("ExecutionAgent: Tool errors detected in result", {
+            toolErrors,
+            outputPreview: result.text?.substring(0, 200),
+          });
+
+        // Use the agent's text response if available (it may have summarized the error),
+        // otherwise use the raw error messages
+        const errorMessage =
+          result.text || `Tool errors occurred: ${errorMessages}`;
+
+        await updateAgentStatus(db, input.agentId, "failed", {
+          errorMessage,
+        });
+
+        this.setState({ isExecuting: false });
+
+        // Ping interaction worker with error
+        try {
+          await this.env.INTERACTION_WORKER.handleAgentCompletion({
+            agentId: input.agentId,
+            conversationId: input.conversationId,
+            success: false,
+            error: errorMessage,
+          });
+        } catch (rpcError) {
+          logger
+            .withTags({
+              agentId: input.agentId,
+              conversationId: input.conversationId,
+            })
+            .error(
+              "ExecutionAgent: Failed to ping interaction worker with tool error",
+              {
+                error:
+                  rpcError instanceof Error
+                    ? rpcError.message
+                    : String(rpcError),
+              },
+            );
+        }
+        return;
+      }
+
       // Extract the final result
       const finalResult = {
         output: result.text,

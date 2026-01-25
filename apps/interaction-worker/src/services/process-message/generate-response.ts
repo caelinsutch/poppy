@@ -1,4 +1,5 @@
 import {
+  disconnectAccount,
   getUserConnections,
   initiateConnection,
 } from "@poppy/clients/composio";
@@ -57,10 +58,11 @@ export const generateResponse = async (
 
   const friendlyTimezone = getFriendlyTimezone(userTimezone);
 
-  // Fetch all active integrations from Composio API
+  // Fetch all active integrations from Composio API (cached for reuse in tools)
+  let activeConnections: Awaited<ReturnType<typeof getUserConnections>> = [];
   const integrations: string[] = [];
   if (primaryUser) {
-    const activeConnections = await getUserConnections(
+    activeConnections = await getUserConnections(
       env.COMPOSIO_API_KEY,
       primaryUser.id,
     );
@@ -227,10 +229,28 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
 
     tools.gmail_connect = tool({
       description:
-        "Connect the user's Gmail account via OAuth. The tool automatically sends the OAuth link to the user - do NOT send the URL again via send_message_to_user.",
+        "Connect the user's Gmail account via OAuth. If they already have a connection, this will disconnect and reconnect. The tool automatically sends the OAuth link to the user - do NOT send the URL again via send_message_to_user.",
       inputSchema: z.object({}),
       execute: async () => {
         console.log("[gmail_connect] Tool execute called");
+
+        // First check if user already has a Gmail connection and disconnect it
+        const existingGmailConnection = activeConnections.find(
+          (c) => c.app.toLowerCase() === "gmail",
+        );
+
+        if (existingGmailConnection) {
+          console.log(
+            "[gmail_connect] Existing connection found, disconnecting first...",
+            { connectionId: existingGmailConnection.connectionId },
+          );
+          const disconnected = await disconnectAccount(
+            composioApiKey,
+            existingGmailConnection.connectionId,
+          );
+          console.log("[gmail_connect] Disconnect result:", { disconnected });
+        }
+
         console.log("[gmail_connect] Calling initiateConnection...");
 
         const result = await initiateConnection(
@@ -263,6 +283,53 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
         };
         console.log("[gmail_connect] Returning error:", errorResponse);
         return errorResponse;
+      },
+    });
+
+    // Gmail disconnect tool - for reconnecting when credentials are stale
+    // Use the cached activeConnections from earlier in the function
+    const cachedConnections = activeConnections;
+
+    tools.gmail_disconnect = tool({
+      description:
+        "Disconnect the user's Gmail account. Use this when the user wants to reconnect their Gmail or when there are credential/authentication errors with their current Gmail connection.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log("[gmail_disconnect] Tool execute called");
+
+        // Use cached connections to avoid redundant API call
+        const gmailConnection = cachedConnections.find(
+          (c) => c.app.toLowerCase() === "gmail",
+        );
+
+        if (!gmailConnection) {
+          return {
+            success: false,
+            sendToUser:
+              "You don't have a Gmail account connected. Would you like to connect one?",
+          };
+        }
+
+        // Disconnect the account
+        const disconnected = await disconnectAccount(
+          composioApiKey,
+          gmailConnection.connectionId,
+        );
+
+        if (disconnected) {
+          console.log("[gmail_disconnect] Successfully disconnected Gmail");
+          return {
+            success: true,
+            sendToUser:
+              "I've disconnected your Gmail account. Would you like to reconnect it?",
+          };
+        }
+
+        return {
+          success: false,
+          sendToUser:
+            "I couldn't disconnect your Gmail account. Please try again later.",
+        };
       },
     });
   }

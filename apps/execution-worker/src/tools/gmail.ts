@@ -62,9 +62,7 @@ export const checkUserConnection = async (
     const connection = connections.items?.find(
       (conn) =>
         conn.status === "ACTIVE" &&
-        (conn.appName?.toLowerCase() === app.toLowerCase() ||
-          conn.appUniqueId?.toLowerCase() === app.toLowerCase() ||
-          conn.toolkit?.slug?.toLowerCase() === app.toLowerCase()),
+        conn.toolkit?.slug?.toLowerCase() === app.toLowerCase(),
     );
 
     if (connection) {
@@ -108,8 +106,7 @@ export const getUserConnections = async (
       connections.items
         ?.filter((conn) => conn.status === "ACTIVE")
         .map((conn) => ({
-          app:
-            conn.appName || conn.appUniqueId || conn.toolkit?.slug || "unknown",
+          app: conn.toolkit?.slug || "unknown",
           connectionId: conn.id,
         })) || []
     );
