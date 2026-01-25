@@ -221,37 +221,22 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
     const composioApiKey = env.COMPOSIO_API_KEY;
     const gmailAuthConfigId = env.COMPOSIO_GMAIL_AUTH_CONFIG_ID;
 
-    console.log("[gmail_connect] Tool created with config:", {
-      userId: visitorUserId,
-      hasApiKey: !!composioApiKey,
-      authConfigId: gmailAuthConfigId,
-    });
-
     tools.gmail_connect = tool({
       description:
         "Connect the user's Gmail account via OAuth. If they already have a connection, this will disconnect and reconnect. The tool automatically sends the OAuth link to the user - do NOT send the URL again via send_message_to_user.",
       inputSchema: z.object({}),
       execute: async () => {
-        console.log("[gmail_connect] Tool execute called");
-
         // First check if user already has a Gmail connection and disconnect it
         const existingGmailConnection = activeConnections.find(
           (c) => c.app.toLowerCase() === "gmail",
         );
 
         if (existingGmailConnection) {
-          console.log(
-            "[gmail_connect] Existing connection found, disconnecting first...",
-            { connectionId: existingGmailConnection.connectionId },
-          );
-          const disconnected = await disconnectAccount(
+          await disconnectAccount(
             composioApiKey,
             existingGmailConnection.connectionId,
           );
-          console.log("[gmail_connect] Disconnect result:", { disconnected });
         }
-
-        console.log("[gmail_connect] Calling initiateConnection...");
 
         const result = await initiateConnection(
           composioApiKey,
@@ -259,30 +244,19 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
           gmailAuthConfigId,
         );
 
-        console.log("[gmail_connect] initiateConnection result:", {
-          hasResult: !!result,
-          hasRedirectUrl: !!result?.redirectUrl,
-          redirectUrl: result?.redirectUrl,
-        });
-
         if (result?.redirectUrl) {
-          const response = {
+          return {
             success: true,
             url: result.redirectUrl,
-            // This sendToUser field automatically sends the message to the user
             sendToUser: `Click here to connect your Gmail: ${result.redirectUrl}`,
           };
-          console.log("[gmail_connect] Returning success:", response);
-          return response;
         }
 
-        const errorResponse = {
+        return {
           success: false,
           sendToUser:
             "Sorry, I couldn't generate a Gmail connection link right now. Please try again later.",
         };
-        console.log("[gmail_connect] Returning error:", errorResponse);
-        return errorResponse;
       },
     });
 
@@ -295,8 +269,6 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
         "Disconnect the user's Gmail account. Use this when the user wants to reconnect their Gmail or when there are credential/authentication errors with their current Gmail connection.",
       inputSchema: z.object({}),
       execute: async () => {
-        console.log("[gmail_disconnect] Tool execute called");
-
         // Use cached connections to avoid redundant API call
         const gmailConnection = cachedConnections.find(
           (c) => c.app.toLowerCase() === "gmail",
@@ -310,14 +282,12 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
           };
         }
 
-        // Disconnect the account
         const disconnected = await disconnectAccount(
           composioApiKey,
           gmailConnection.connectionId,
         );
 
         if (disconnected) {
-          console.log("[gmail_disconnect] Successfully disconnected Gmail");
           return {
             success: true,
             sendToUser:

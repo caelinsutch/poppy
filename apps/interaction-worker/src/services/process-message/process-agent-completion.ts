@@ -191,8 +191,8 @@ export const processAgentCompletion = async (
       isGroup: conversation.isGroup,
     });
 
-    logger.info("Formatted conversation", {
-      formattedConversation,
+    logger.info("Formatted conversation for agent processing", {
+      conversationLength: formattedConversation.length,
     });
 
     // Generate response from interaction agent
@@ -215,7 +215,6 @@ export const processAgentCompletion = async (
 
     completionLogger.info("Generated response", {
       messageCount: messagesToUser.length,
-      messages: messagesToUser,
     });
 
     // If the interaction agent didn't produce messages but the execution agent failed,

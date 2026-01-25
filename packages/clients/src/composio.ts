@@ -75,39 +75,22 @@ export const initiateConnection = async (
   userId: string,
   authConfigId: string,
 ): Promise<{ redirectUrl: string; connectionId: string } | null> => {
-  console.log("[Composio] initiateConnection called", {
-    userId,
-    authConfigId,
-    hasApiKey: !!apiKey,
-    apiKeyPrefix: apiKey?.substring(0, 8),
-  });
-
   try {
     const composio = new Composio({ apiKey });
-    console.log("[Composio] Client created, calling initiate...");
-
     const connectionRequest = await composio.connectedAccounts.initiate(
       userId,
       authConfigId,
     );
-
-    console.log("[Composio] initiate response:", {
-      hasRedirectUrl: !!connectionRequest.redirectUrl,
-      redirectUrl: connectionRequest.redirectUrl,
-      id: connectionRequest.id,
-      fullResponse: JSON.stringify(connectionRequest),
-    });
 
     return {
       redirectUrl: connectionRequest.redirectUrl || "",
       connectionId: connectionRequest.id || "",
     };
   } catch (error) {
-    console.error("[Composio] initiateConnection error:", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
-    });
+    console.error(
+      "[Composio] initiateConnection error:",
+      error instanceof Error ? error.message : String(error),
+    );
     return null;
   }
 };
