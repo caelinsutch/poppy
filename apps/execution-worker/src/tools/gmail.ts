@@ -3,13 +3,14 @@ import { VercelProvider } from "@composio/vercel";
 import { logger } from "@poppy/hono-helpers";
 
 /**
- * Gets Gmail tools from Composio for use with Vercel AI SDK.
+ * Gets tools from Composio for use with Vercel AI SDK.
  * Uses the user's Poppy userId as the Composio userId.
  */
 export const getComposioTools = async (
   apiKey: string,
   userId: string,
   toolkits: string[] = ["gmail"],
+  specificTools?: string[],
 ) => {
   try {
     const composio = new Composio({
@@ -17,14 +18,19 @@ export const getComposioTools = async (
       provider: new VercelProvider(),
     });
 
-    // Get tools using toolkits - userId must have an active connection
-    const tools = await composio.tools.get(userId, {
-      toolkits,
-    });
+    // If specific tools are requested, use the tools parameter
+    // Otherwise use toolkits with a high limit
+    const queryParams = specificTools
+      ? { tools: specificTools }
+      : { toolkits, limit: 100 };
+
+    const tools = await composio.tools.get(userId, queryParams);
 
     logger.info("Successfully loaded Composio tools", {
       toolCount: Object.keys(tools).length,
+      toolNames: Object.keys(tools),
       toolkits,
+      specificTools,
       userId,
     });
 
@@ -34,6 +40,7 @@ export const getComposioTools = async (
       error: error instanceof Error ? error.message : String(error),
       userId,
       toolkits,
+      specificTools,
     });
     return {};
   }

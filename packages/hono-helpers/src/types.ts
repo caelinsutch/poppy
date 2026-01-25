@@ -35,6 +35,10 @@ export type SharedHonoEnv = {
    * Base URL for OAuth callback webhooks (e.g., https://poppy-execution-production.workers.dev)
    */
   COMPOSIO_WEBHOOK_BASE_URL: string;
+  /**
+   * Composio Google Calendar auth config ID (from Composio dashboard)
+   */
+  COMPOSIO_CALENDAR_AUTH_CONFIG_ID: string;
 };
 /** Global Hono variables */
 export type SharedHonoVariables = {

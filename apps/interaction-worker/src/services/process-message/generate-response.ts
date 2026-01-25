@@ -87,8 +87,8 @@ export const generateResponse = async (
 
   const integrationsContext =
     integrations.length > 0
-      ? `## Connected Integrations\nThe user has connected: ${integrations.join(", ")}\n\nIMPORTANT: To perform ANY action with these integrations (read emails, send emails, check inbox, etc.), you MUST delegate to your agent using \`send_message_to_agent\`. You cannot directly access these services - only the agent has the tools to interact with them.\n\nExample: If user asks "check my inbox", acknowledge and call send_message_to_agent with instructions like "Check the user's Gmail inbox for recent emails".`
-      : `## Connected Integrations\nNo integrations connected yet. The user can connect Gmail using the gmail_connect tool.`;
+      ? `## Connected Integrations\nThe user has connected: ${integrations.join(", ")}\n\nIMPORTANT: To perform ANY action with these integrations (read emails, send emails, check inbox, create calendar events, check schedule, etc.), you MUST delegate to your agent using \`send_message_to_agent\`. You cannot directly access these services - only the agent has the tools to interact with them.\n\nExample: If user asks "check my inbox", acknowledge and call send_message_to_agent with instructions like "Check the user's Gmail inbox for recent emails".\nExample: If user asks "schedule a meeting", acknowledge and call send_message_to_agent with instructions like "Create a calendar event for...".`
+      : `## Connected Integrations\nNo integrations connected yet. The user can connect Gmail using the gmail_connect tool or Google Calendar using the calendar_connect tool.`;
 
   const system = `
 ${basePrompt}
@@ -299,6 +299,87 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
           success: false,
           sendToUser:
             "I couldn't disconnect your Gmail account. Please try again later.",
+        };
+      },
+    });
+
+    // Calendar connect tool - initiates OAuth via Composio
+    const calendarAuthConfigId = env.COMPOSIO_CALENDAR_AUTH_CONFIG_ID;
+
+    tools.calendar_connect = tool({
+      description:
+        "Connect the user's Google Calendar account via OAuth. If they already have a connection, this will disconnect and reconnect. The tool automatically sends the OAuth link to the user - do NOT send the URL again via send_message_to_user.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        // First check if user already has a Calendar connection and disconnect it
+        const existingCalendarConnection = activeConnections.find(
+          (c) => c.app.toLowerCase() === "googlecalendar",
+        );
+
+        if (existingCalendarConnection) {
+          await disconnectAccount(
+            composioApiKey,
+            existingCalendarConnection.connectionId,
+          );
+        }
+
+        const result = await initiateConnection(
+          composioApiKey,
+          visitorUserId,
+          calendarAuthConfigId,
+        );
+
+        if (result?.redirectUrl) {
+          return {
+            success: true,
+            url: result.redirectUrl,
+            sendToUser: `Click here to connect your Google Calendar: ${result.redirectUrl}`,
+          };
+        }
+
+        return {
+          success: false,
+          sendToUser:
+            "Sorry, I couldn't generate a Calendar connection link right now. Please try again later.",
+        };
+      },
+    });
+
+    // Calendar disconnect tool
+    tools.calendar_disconnect = tool({
+      description:
+        "Disconnect the user's Google Calendar account. Use this when the user wants to reconnect their Calendar or when there are credential/authentication errors with their current Calendar connection.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const calendarConnection = cachedConnections.find(
+          (c) => c.app.toLowerCase() === "googlecalendar",
+        );
+
+        if (!calendarConnection) {
+          return {
+            success: false,
+            sendToUser:
+              "You don't have a Google Calendar connected. Would you like to connect one?",
+          };
+        }
+
+        const disconnected = await disconnectAccount(
+          composioApiKey,
+          calendarConnection.connectionId,
+        );
+
+        if (disconnected) {
+          return {
+            success: true,
+            sendToUser:
+              "I've disconnected your Google Calendar. Would you like to reconnect it?",
+          };
+        }
+
+        return {
+          success: false,
+          sendToUser:
+            "I couldn't disconnect your Google Calendar. Please try again later.",
         };
       },
     });

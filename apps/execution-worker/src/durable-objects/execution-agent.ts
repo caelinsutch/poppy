@@ -99,6 +99,44 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
           userId: input.userId,
         });
       }
+
+      // Add Google Calendar tools if user has an active connection
+      const calendarConnection = await checkUserConnection(
+        this.env.COMPOSIO_API_KEY,
+        input.userId,
+        "googlecalendar",
+      );
+
+      if (calendarConnection.connected) {
+        logger.info("Loading Calendar tools for user", {
+          userId: input.userId,
+        });
+
+        // Request specific calendar tools - must use exact Composio action names
+        const calendarTools = await getComposioTools(
+          this.env.COMPOSIO_API_KEY,
+          input.userId,
+          ["googlecalendar"],
+          [
+            "GOOGLECALENDAR_EVENTS_LIST_ALL_CALENDARS",
+            "GOOGLECALENDAR_CREATE_EVENT",
+            "GOOGLECALENDAR_UPDATE_EVENT",
+            "GOOGLECALENDAR_DELETE_EVENT",
+            "GOOGLECALENDAR_FIND_FREE_SLOTS",
+            "GOOGLECALENDAR_QUICK_ADD",
+          ],
+        );
+
+        Object.assign(tools, calendarTools);
+
+        logger.info("Calendar tools loaded successfully", {
+          calendarToolCount: Object.keys(calendarTools).length,
+        });
+      } else {
+        logger.info("No active Calendar connection for user", {
+          userId: input.userId,
+        });
+      }
     }
 
     return tools;
