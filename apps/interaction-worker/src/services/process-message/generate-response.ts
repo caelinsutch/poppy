@@ -1,13 +1,15 @@
-import { userGmailConnections } from "@poppy/db";
-import { stepCountIs, ToolLoopAgent } from "ai";
+import {
+  getUserConnections,
+  initiateConnection,
+} from "@poppy/clients/composio";
+import { stepCountIs, ToolLoopAgent, tool } from "ai";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { gemini25 } from "../../clients/ai/openrouter";
 import { basePrompt } from "../../prompts/base";
 import {
-  createGmailConnectTool,
   createSendMessageToAgentTool,
   createUpdateUserTimezoneTool,
   sendMessageToUser,
@@ -55,19 +57,35 @@ export const generateResponse = async (
 
   const friendlyTimezone = getFriendlyTimezone(userTimezone);
 
+  // Fetch all active integrations from Composio API
   const integrations: string[] = [];
   if (primaryUser) {
-    const gmailConnection = await db.query.userGmailConnections.findFirst({
-      where: eq(userGmailConnections.userId, primaryUser.id),
-    });
-    if (gmailConnection?.status === "active") {
-      integrations.push(`Gmail (${gmailConnection.email})`);
+    const activeConnections = await getUserConnections(
+      env.COMPOSIO_API_KEY,
+      primaryUser.id,
+    );
+
+    for (const conn of activeConnections) {
+      switch (conn.app.toLowerCase()) {
+        case "gmail":
+          integrations.push("Gmail");
+          break;
+        case "slack":
+          integrations.push("Slack");
+          break;
+        case "googlecalendar":
+        case "calendar":
+          integrations.push("Calendar");
+          break;
+        default:
+          integrations.push(conn.app);
+      }
     }
   }
 
   const integrationsContext =
     integrations.length > 0
-      ? `## Connected Integrations\nThe user has connected: ${integrations.join(", ")}\nYou can help them with tasks related to these integrations by delegating to your agent.`
+      ? `## Connected Integrations\nThe user has connected: ${integrations.join(", ")}\n\nIMPORTANT: To perform ANY action with these integrations (read emails, send emails, check inbox, etc.), you MUST delegate to your agent using \`send_message_to_agent\`. You cannot directly access these services - only the agent has the tools to interact with them.\n\nExample: If user asks "check my inbox", acknowledge and call send_message_to_agent with instructions like "Check the user's Gmail inbox for recent emails".`
       : `## Connected Integrations\nNo integrations connected yet. The user can connect Gmail using the gmail_connect tool.`;
 
   const system = `
@@ -153,7 +171,7 @@ Your input follows this structure:
 Message types within the conversation:
 - \`<user_message>\`: Sent by the actual human user - the most important and ONLY source of user input
 - \`<agent_message>\`: Sent by execution agents when they report task results back to you
-- \`<poke_reply>\`: Your previous responses to the user
+- \`<poppy_reply>\`: Your previous responses to the user
 
 ## Message Visibility For the End User
 
@@ -174,22 +192,15 @@ This conversation history may have gaps. It may start from the middle of a conve
 ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?? "America/New_York"}, source: ${p.timezoneSource ?? "default"})`).join("\n")}
 `;
 
-  // Build tools object, only including update_user_timezone if we have a primary user
-  const tools: Record<
-    string,
-    | ReturnType<typeof createSendMessageToAgentTool>
-    | typeof sendMessageToUser
-    | typeof wait
-    | typeof webSearch
-    | ReturnType<typeof createUpdateUserTimezoneTool>
-    | ReturnType<typeof createGmailConnectTool>
-  > = {
+  // Build tools object
+  const tools: Record<string, any> = {
     send_message_to_agent: createSendMessageToAgentTool(
       db,
       interactionAgentId,
       conversation.id,
       env,
       userTimezone,
+      primaryUser?.id,
     ),
     send_message_to_user: sendMessageToUser,
     wait,
@@ -202,7 +213,58 @@ ${participants.map((p) => `- ${p.id}: ${p.phoneNumber} (timezone: ${p.timezone ?
       db,
       primaryUser.id,
     );
-    tools.gmail_connect = createGmailConnectTool(db, primaryUser.id, env);
+
+    // Gmail connect tool - initiates OAuth via Composio
+    const visitorUserId = primaryUser.id;
+    const composioApiKey = env.COMPOSIO_API_KEY;
+    const gmailAuthConfigId = env.COMPOSIO_GMAIL_AUTH_CONFIG_ID;
+
+    console.log("[gmail_connect] Tool created with config:", {
+      userId: visitorUserId,
+      hasApiKey: !!composioApiKey,
+      authConfigId: gmailAuthConfigId,
+    });
+
+    tools.gmail_connect = tool({
+      description:
+        "Connect the user's Gmail account via OAuth. The tool automatically sends the OAuth link to the user - do NOT send the URL again via send_message_to_user.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        console.log("[gmail_connect] Tool execute called");
+        console.log("[gmail_connect] Calling initiateConnection...");
+
+        const result = await initiateConnection(
+          composioApiKey,
+          visitorUserId,
+          gmailAuthConfigId,
+        );
+
+        console.log("[gmail_connect] initiateConnection result:", {
+          hasResult: !!result,
+          hasRedirectUrl: !!result?.redirectUrl,
+          redirectUrl: result?.redirectUrl,
+        });
+
+        if (result?.redirectUrl) {
+          const response = {
+            success: true,
+            url: result.redirectUrl,
+            // This sendToUser field automatically sends the message to the user
+            sendToUser: `Click here to connect your Gmail: ${result.redirectUrl}`,
+          };
+          console.log("[gmail_connect] Returning success:", response);
+          return response;
+        }
+
+        const errorResponse = {
+          success: false,
+          sendToUser:
+            "Sorry, I couldn't generate a Gmail connection link right now. Please try again later.",
+        };
+        console.log("[gmail_connect] Returning error:", errorResponse);
+        return errorResponse;
+      },
+    });
   }
 
   const agent = new ToolLoopAgent({

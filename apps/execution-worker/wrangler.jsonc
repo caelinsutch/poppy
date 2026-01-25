@@ -6,6 +6,9 @@
     "nodejs_compat",
     "nodejs_compat_populate_process_env"
   ],
+  "placement": {
+    "mode": "smart"
+  },
   "logpush": false,
   "upload_source_maps": true,
   "observability": {
@@ -29,7 +32,8 @@
   ],
   "vars": {
     "NODE_ENV": "production",
-    "NAME": "poppy-execution"
+    "NAME": "poppy-execution",
+    "COMPOSIO_WEBHOOK_BASE_URL": "http://localhost:8788"
   },
   "env": {
     "production": {
@@ -57,7 +61,8 @@
       ],
       "vars": {
         "NODE_ENV": "production",
-        "NAME": "poppy-execution"
+        "NAME": "poppy-execution",
+        "COMPOSIO_WEBHOOK_BASE_URL": "https://poppy-execution-production.caelinsutch.workers.dev"
       }
     },
     "staging": {
@@ -85,7 +90,8 @@
       ],
       "vars": {
         "NODE_ENV": "staging",
-        "NAME": "poppy-execution"
+        "NAME": "poppy-execution",
+        "COMPOSIO_WEBHOOK_BASE_URL": "https://poppy-execution-staging.caelinsutch.workers.dev"
       }
     }
   }

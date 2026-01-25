@@ -1,33 +1,15 @@
 import { Composio } from "@composio/core";
 import { VercelProvider } from "@composio/vercel";
-import type { getDb } from "@poppy/db";
-import { userGmailConnections } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
-import { tool } from "ai";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-
-type Database = ReturnType<typeof getDb>;
-
-// Gmail tool names available from Composio
-const GMAIL_TOOLS = [
-  "GMAIL_SEND_EMAIL",
-  "GMAIL_CREATE_EMAIL_DRAFT",
-  "GMAIL_SEND_DRAFT",
-  "GMAIL_REPLY_TO_THREAD",
-  "GMAIL_FORWARD_MESSAGE",
-  "GMAIL_LIST_DRAFTS",
-  "GMAIL_FETCH_EMAILS",
-  "GMAIL_GET_PROFILE",
-] as const;
 
 /**
- * Creates Gmail tools using Composio's Vercel provider
- * The tools are automatically formatted for use with Vercel AI SDK
+ * Gets Gmail tools from Composio for use with Vercel AI SDK.
+ * Uses the user's Poppy userId as the Composio userId.
  */
-export const createGmailTools = async (
+export const getComposioTools = async (
   apiKey: string,
-  composioUserId: string,
+  userId: string,
+  toolkits: string[] = ["gmail"],
 ) => {
   try {
     const composio = new Composio({
@@ -35,83 +17,139 @@ export const createGmailTools = async (
       provider: new VercelProvider(),
     });
 
-    // Get pre-configured Gmail tools from Composio
-    const tools = await composio.tools.get(composioUserId, {
-      tools: [...GMAIL_TOOLS],
+    // Get tools using toolkits - userId must have an active connection
+    const tools = await composio.tools.get(userId, {
+      toolkits,
     });
 
-    logger.info("Successfully loaded Gmail tools from Composio", {
+    logger.info("Successfully loaded Composio tools", {
       toolCount: Object.keys(tools).length,
-      composioUserId,
+      toolkits,
+      userId,
     });
 
     return tools;
   } catch (error) {
-    logger.error("Failed to load Gmail tools from Composio", {
+    logger.error("Failed to load Composio tools", {
       error: error instanceof Error ? error.message : String(error),
-      composioUserId,
+      userId,
+      toolkits,
     });
     return {};
   }
 };
 
 /**
- * Creates a wrapper tool that checks Gmail connection status
- * and provides helpful messages when Gmail is not connected
+ * Check if a user has an active connection for a specific app.
+ * Returns connection details from Composio's API.
  */
-export const createGmailCheckTool = (db: Database, userId: string) => {
-  return tool({
-    description: `Check if the user has Gmail connected. Use this before attempting any email operations to ensure the user has authorized Gmail access.`,
-    inputSchema: z.object({}),
-    execute: async () => {
-      const connection = await db.query.userGmailConnections.findFirst({
-        where: eq(userGmailConnections.userId, userId),
-      });
+export const checkUserConnection = async (
+  apiKey: string,
+  userId: string,
+  app: string = "gmail",
+): Promise<{
+  connected: boolean;
+  email?: string;
+  connectionId?: string;
+}> => {
+  try {
+    const composio = new Composio({ apiKey });
 
-      if (!connection) {
-        return {
-          type: "gmail_not_connected" as const,
-          connected: false,
-          message:
-            "Gmail is not connected. Please ask the user to connect their Gmail first using the interaction agent.",
-        };
-      }
+    const connections = await composio.connectedAccounts.list({
+      userIds: [userId],
+    });
 
-      if (connection.status !== "active") {
-        return {
-          type: "gmail_not_active" as const,
-          connected: false,
-          status: connection.status,
-          message: `Gmail connection status is '${connection.status}'. The user may need to complete the OAuth flow or reconnect.`,
-        };
-      }
+    const connection = connections.items?.find(
+      (conn) =>
+        conn.status === "ACTIVE" &&
+        (conn.appName?.toLowerCase() === app.toLowerCase() ||
+          conn.appUniqueId?.toLowerCase() === app.toLowerCase() ||
+          conn.toolkit?.slug?.toLowerCase() === app.toLowerCase()),
+    );
 
+    if (connection) {
       return {
-        type: "gmail_connected" as const,
         connected: true,
-        email: connection.email,
-        composioUserId: connection.composioUserId,
-        message: `Gmail is connected (${connection.email}). You can now use Gmail tools.`,
+        connectionId: connection.id,
       };
-    },
-  });
+    }
+
+    return { connected: false };
+  } catch (error) {
+    logger.error("Failed to check user connection", {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+      app,
+    });
+    return { connected: false };
+  }
 };
 
 /**
- * Gets the Composio user ID for a given Poppy user ID
- * Returns null if no Gmail connection exists
+ * Get all active connections for a user from Composio.
  */
-export const getComposioUserIdForUser = async (
-  db: Database,
+export const getUserConnections = async (
+  apiKey: string,
   userId: string,
-): Promise<string | null> => {
-  const connection = await db.query.userGmailConnections.findFirst({
-    where: eq(userGmailConnections.userId, userId),
-  });
+): Promise<
+  Array<{
+    app: string;
+    connectionId: string;
+  }>
+> => {
+  try {
+    const composio = new Composio({ apiKey });
 
-  if (!connection || connection.status !== "active") {
+    const connections = await composio.connectedAccounts.list({
+      userIds: [userId],
+    });
+
+    return (
+      connections.items
+        ?.filter((conn) => conn.status === "ACTIVE")
+        .map((conn) => ({
+          app:
+            conn.appName || conn.appUniqueId || conn.toolkit?.slug || "unknown",
+          connectionId: conn.id,
+        })) || []
+    );
+  } catch (error) {
+    logger.error("Failed to get user connections", {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+    });
+    return [];
+  }
+};
+
+/**
+ * Initiate a connection for a user to an app.
+ * Returns the OAuth redirect URL.
+ */
+export const initiateConnection = async (
+  apiKey: string,
+  userId: string,
+  authConfigId: string,
+): Promise<{ redirectUrl: string; connectionId: string } | null> => {
+  try {
+    const composio = new Composio({ apiKey });
+
+    const result = await composio.connectedAccounts.link(userId, authConfigId);
+
+    logger.info("Initiated Composio connection", {
+      userId,
+      connectionId: result.id,
+    });
+
+    return {
+      redirectUrl: result.redirectUrl || "",
+      connectionId: result.id || "",
+    };
+  } catch (error) {
+    logger.error("Failed to initiate connection", {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+    });
     return null;
   }
-
-  return connection.composioUserId;
 };

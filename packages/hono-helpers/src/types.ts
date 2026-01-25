@@ -31,6 +31,10 @@ export type SharedHonoEnv = {
    * Composio Gmail auth config ID (from Composio dashboard)
    */
   COMPOSIO_GMAIL_AUTH_CONFIG_ID: string;
+  /**
+   * Base URL for OAuth callback webhooks (e.g., https://poppy-execution-production.workers.dev)
+   */
+  COMPOSIO_WEBHOOK_BASE_URL: string;
 };
 /** Global Hono variables */
 export type SharedHonoVariables = {

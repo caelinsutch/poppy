@@ -15,9 +15,9 @@ dayjs.extend(timezone);
 import type { WorkerEnv } from "../context";
 import { updateAgentStatus } from "../services/agent-manager";
 import {
-  createGmailCheckTool,
-  createGmailTools,
-  getComposioUserIdForUser,
+  checkUserConnection,
+  getComposioTools,
+  getUserConnections,
 } from "../tools/gmail";
 import {
   createCancelReminderTool,
@@ -39,7 +39,6 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
    */
   private async buildTools(
     input: TaskInput,
-    db: ReturnType<typeof getDb>,
     callbacks: {
       scheduleCallback: (params: {
         delaySeconds: number;
@@ -69,25 +68,28 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
       cancel_reminder: createCancelReminderTool(callbacks.cancelCallback),
     };
 
-    // Add Gmail tools if user has an active connection
+    // Add Gmail tools if user has an active connection (check via Composio API)
     if (input.userId) {
-      const composioUserId = await getComposioUserIdForUser(db, input.userId);
-      if (composioUserId) {
+      const gmailConnection = await checkUserConnection(
+        this.env.COMPOSIO_API_KEY,
+        input.userId,
+        "gmail",
+      );
+
+      if (gmailConnection.connected) {
         logger.info("Loading Gmail tools for user", {
           userId: input.userId,
-          composioUserId,
         });
 
-        const gmailTools = await createGmailTools(
+        // Get Gmail tools from Composio using userId directly
+        const gmailTools = await getComposioTools(
           this.env.COMPOSIO_API_KEY,
-          composioUserId,
+          input.userId,
+          ["gmail"],
         );
 
         // Merge Gmail tools into the tools object
         Object.assign(tools, gmailTools);
-
-        // Also add the Gmail check tool
-        tools.gmail_check = createGmailCheckTool(db, input.userId);
 
         logger.info("Gmail tools loaded successfully", {
           gmailToolCount: Object.keys(gmailTools).length,
@@ -256,6 +258,14 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
         return { success: true, message: "Reminder cancelled" };
       };
 
+      // Build tools (includes Gmail tools if user has active connection)
+      const tools = await this.buildTools(input, {
+        scheduleCallback,
+        saveToDbCallback,
+        listCallback,
+        cancelCallback,
+      });
+
       // Create agentic loop with tools
       logger
         .withTags({
@@ -263,13 +273,7 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
           conversationId: input.conversationId,
         })
         .info("ExecutionAgent: Creating ToolLoopAgent", {
-          availableTools: [
-            "research",
-            "wait",
-            "set_reminder",
-            "list_reminders",
-            "cancel_reminder",
-          ],
+          availableTools: Object.keys(tools),
           maxSteps: 20,
         });
 
@@ -296,23 +300,81 @@ export class ExecutionAgent extends Agent<WorkerEnv, ExecutionState> {
 
       const friendlyTimezone = getFriendlyTimezone(userTimezone);
 
+      // Fetch user's active integrations from Composio API
+      let integrationsContext = "";
+      if (input.userId) {
+        const activeConnections = await getUserConnections(
+          this.env.COMPOSIO_API_KEY,
+          input.userId,
+        );
+
+        if (activeConnections.length > 0) {
+          const integrationsList = activeConnections.map((conn) => {
+            switch (conn.app.toLowerCase()) {
+              case "gmail":
+                return `- Gmail: Can send/read emails, search inbox, manage drafts`;
+              case "slack":
+                return `- Slack: Can send messages, read channels`;
+              case "googlecalendar":
+              case "calendar":
+                return `- Calendar: Can create/read events, check availability`;
+              default:
+                return `- ${conn.app}: Connected`;
+            }
+          });
+
+          integrationsContext = `
+# User's Connected Integrations
+The user has the following integrations connected. You have tools available to interact with these services:
+${integrationsList.join("\n")}
+`;
+        } else {
+          integrationsContext = `
+# User's Connected Integrations
+No integrations are currently connected for this user.
+`;
+        }
+      }
+
       const agent = new ToolLoopAgent({
         model: gemini25(this.env.OPENROUTER_API_KEY),
-        instructions: `You are the assistant of Poke by the Interaction Company of California. You are the "execution engine" of Poke, helping complete tasks for Poke, while Poke talks to the user. Your job is to execute and accomplish a goal, and you do not have direct access to the user.
+        instructions: `You are the execution engine of Poppy. Your job is to TAKE ACTION and accomplish tasks, not ask questions.
 
-Your final output is directed to Poke, which handles user conversations and presents your results to the user. Focus on providing Poke with adequate contextual information; you are not responsible for framing responses in a user-friendly way.
+# Core Principle: ACTION OVER CLARIFICATION
+- NEVER ask clarifying questions. Just take action with sensible defaults.
+- Asking for clarification creates a terrible user experience (multi-hop delays).
+- If something is ambiguous, make a reasonable assumption and proceed.
+- You can always provide more context in your response about what you assumed.
 
-If you need more data from Poke or the user, include it in your final output message. If you need to send a message to the user, tell Poke to forward that message to the user.
+# Sensible Defaults (use these instead of asking)
+- "recent emails" or "check inbox" → fetch the 5 most recent emails
+- "search emails" without query → fetch recent emails instead
+- Ambiguous time references → use reasonable interpretation based on context
 
-Remember that your last output message (summary) will be forwarded to Poke. In that message, provide all relevant information and avoid preamble or postamble (e.g., "Here's what I found:" or "Let me know if this looks good"). Be concise and direct.
+# Asking Clarifying Questions
+If you truly cannot proceed without more information (rare):
+- Include your question clearly in your output
+- Poppy will ask the user and send you a follow-up task
+- Only ask when you genuinely cannot make a reasonable assumption
 
-This conversation history may have gaps. It may start from the middle of a conversation, or it may be missing messages. The only assumption you can make is that Poke's latest message is the most recent one, and representative of Poke's current requests. Address that message directly. The other messages are just for context.
+Example situations where asking is OK:
+- "Send an email" but no recipient → "I need to know who to send this email to."
+- Multiple accounts and no way to guess → "Which account should I use: X or Y?"
 
-Before you call any tools, reason through why you are calling them by explaining the thought process. If it could possibly be helpful to call more than one tool at once, then do so.
+Example situations where you should NOT ask:
+- "Check my inbox" → just fetch the 5 most recent emails
+- "Send email to John" when you have John's email → just send it
+
+# Output Format
+Your output goes to Poppy, who relays it to the user. Be concise and direct:
+- Just provide the results or information
+- No preamble ("Here's what I found:")
+- No postamble ("Let me know if you need anything else")
+- State what you did and what you found
 
 Agent Name: ${agentName}
 Purpose: ${agentRecord?.purpose || "task execution"}
-
+${integrationsContext}
 # User Timezone Context
 User's timezone: ${userTimezone} (${friendlyTimezone} time)
 Current time in user's timezone: ${currentTimeInUserTz}
@@ -338,7 +400,7 @@ When scheduling reminders or interpreting time-related requests:
 
 # Handling Scheduled Reminders
 When your task starts with "[SCHEDULED REMINDER]", this means a previously scheduled reminder has FIRED. You should:
-1. Simply tell Poke to notify the user about this reminder
+1. Simply tell Poppy to notify the user about this reminder
 2. Do NOT try to set a new reminder unless the user explicitly asks for it
 3. Do NOT ask clarifying questions - just deliver the reminder message
 4. Your output should just say what the reminder was about (e.g., "Tell the user: Pay off your J.Crew card!")
@@ -349,22 +411,15 @@ Example:
 - WRONG response: "I need to set a reminder for..." or "When should I remind them?"
 
 # Guidelines
-1. Analyze the instructions carefully before taking action
-2. Use the appropriate tools to complete the task
-3. Be thorough and accurate in your execution
-4. Provide clear, concise responses about what you accomplished
-5. If you encounter errors, explain what went wrong and what you tried
-6. Use set_reminder when the user asks to be reminded about something or when you need to follow up later
-7. When handling [SCHEDULED REMINDER] tasks, just deliver the notification - don't set new reminders
+1. TAKE ACTION IMMEDIATELY - don't ask for clarification
+2. Use sensible defaults when details are missing
+3. If you encounter errors, explain what went wrong briefly
+4. For reminders: use set_reminder, default to 10 AM if no time given
+5. For [SCHEDULED REMINDER] tasks: just deliver the notification, don't set new reminders
 
 # Current Task
 ${input.taskDescription}`,
-        tools: await this.buildTools(input, db, {
-          scheduleCallback,
-          saveToDbCallback,
-          listCallback,
-          cancelCallback,
-        }),
+        tools,
         stopWhen: stepCountIs(20),
       });
 

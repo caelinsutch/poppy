@@ -14,7 +14,6 @@ export type UIToolTypes = {
   >;
 } & UITools;
 
-export * from "./gmail-connect";
 export * from "./send-message-to-agent";
 export * from "./send-message-to-user";
 export * from "./update-user-timezone";

@@ -17,6 +17,7 @@ export const createSendMessageToAgentTool = (
   conversationId: string,
   env: WorkerEnv,
   userTimezone?: string,
+  userId?: string,
 ) => {
   return tool({
     description: `Send a message to an execution agent to accomplish a task.
@@ -150,6 +151,7 @@ The agent has tools for a wide variety of tasks. Use this tool often.
           conversationId,
           taskDescription: message,
           userTimezone,
+          userId,
         })) as { success: boolean; message: string };
 
         logger

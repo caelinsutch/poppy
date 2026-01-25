@@ -53,11 +53,22 @@ app.post("/api/webhooks/composio", async (c) => {
   const webhookLogger = logger.withTags({ module: "composio-webhook" });
 
   try {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    webhookLogger.info("Received raw Composio webhook", {
+      rawBody: rawBody.substring(0, 1000),
+      contentType: c.req.header("content-type"),
+      url: c.req.url,
+    });
 
-    webhookLogger.info("Received Composio webhook", {
+    const body = JSON.parse(rawBody);
+
+    webhookLogger.info("Parsed Composio webhook", {
       event: body.event,
+      type: body.type,
       triggerName: body.data?.triggerName,
+      connectionId: body.connectionId || body.data?.connection_id,
+      status: body.status,
+      keys: Object.keys(body),
     });
 
     const result = await handleComposioWebhook(body, c.env);
@@ -65,6 +76,7 @@ app.post("/api/webhooks/composio", async (c) => {
   } catch (error) {
     webhookLogger.error("Error processing Composio webhook", {
       error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
     return c.json({ success: false, message: "Internal error" }, 500);
   }

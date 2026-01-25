@@ -3,7 +3,6 @@ import {
   conversationParticipants,
   conversations,
   getDb,
-  userGmailConnections,
 } from "@poppy/db";
 import { logger } from "@poppy/hono-helpers";
 import { desc, eq } from "drizzle-orm";
@@ -11,13 +10,34 @@ import type { WorkerEnv } from "../context";
 
 type Database = ReturnType<typeof getDb>;
 
-type OAuthCallbackPayload = {
-  connectionId: string;
-  status: "ACTIVE" | "FAILED";
-  email?: string;
-  userId?: string;
+// Composio V2 webhook format for email triggers
+type ComposioV2EmailPayload = {
+  type: "gmail_new_gmail_message";
+  timestamp: string;
+  log_id: string;
+  data: {
+    id: string;
+    message_id: string;
+    thread_id: string;
+    label_ids: string[];
+    message_text: string;
+    message_timestamp: string;
+    sender: string;
+    subject: string;
+    to: string;
+    preview?: {
+      body: string;
+      subject: string;
+    };
+    connection_id: string;
+    connection_nano_id: string;
+    trigger_nano_id: string;
+    trigger_id: string;
+    user_id: string; // This is our Poppy userId
+  };
 };
 
+// Legacy email trigger format
 type EmailTriggerPayload = {
   event: "trigger";
   data: {
@@ -38,16 +58,50 @@ type EmailTriggerPayload = {
         }>;
       };
     };
-    entityId: string;
+    entityId: string; // This is our Poppy userId
   };
 };
 
-type ComposioWebhookPayload = OAuthCallbackPayload | EmailTriggerPayload;
+// OAuth completion webhook (if Composio sends one)
+type OAuthCallbackPayload = {
+  connectionId: string;
+  status: "ACTIVE" | "FAILED";
+  email?: string;
+  userId?: string; // This is our Poppy userId
+};
+
+type ComposioWebhookPayload =
+  | OAuthCallbackPayload
+  | EmailTriggerPayload
+  | ComposioV2EmailPayload;
+
+type EmailInfo = {
+  messageId: string;
+  threadId: string;
+  from: string | undefined;
+  to: string | undefined;
+  subject: string | undefined;
+  date: string | undefined;
+  snippet: string;
+  labels: string[];
+};
 
 const isEmailTrigger = (
   payload: ComposioWebhookPayload,
 ): payload is EmailTriggerPayload => {
   return "event" in payload && payload.event === "trigger";
+};
+
+const isV2EmailPayload = (
+  payload: ComposioWebhookPayload,
+): payload is ComposioV2EmailPayload => {
+  return "type" in payload && payload.type === "gmail_new_gmail_message";
+};
+
+const isOAuthCallback = (
+  payload: ComposioWebhookPayload,
+): payload is OAuthCallbackPayload => {
+  return "connectionId" in payload && "status" in payload;
 };
 
 export const handleComposioWebhook = async (
@@ -58,11 +112,20 @@ export const handleComposioWebhook = async (
 
   webhookLogger.info("Processing Composio webhook", { payload });
 
+  if (isV2EmailPayload(payload)) {
+    return handleV2EmailTrigger(payload, env);
+  }
+
   if (isEmailTrigger(payload)) {
     return handleEmailTrigger(payload, env);
   }
 
-  return handleOAuthCallback(payload, env);
+  if (isOAuthCallback(payload)) {
+    return handleOAuthCallback(payload, env);
+  }
+
+  webhookLogger.warn("Unknown webhook payload type", { payload });
+  return { success: false, message: "Unknown payload type" };
 };
 
 const handleOAuthCallback = async (
@@ -74,55 +137,122 @@ const handleOAuthCallback = async (
   webhookLogger.info("Processing OAuth callback", {
     connectionId: payload.connectionId,
     status: payload.status,
+    userId: payload.userId,
   });
+
+  // With Composio managing connections, we just need to notify the user
+  // The userId in the payload IS our Poppy userId
+  if (payload.status === "ACTIVE" && payload.userId) {
+    const db = getDb(env.HYPERDRIVE.connectionString);
+    await sendWelcomeMessage(payload.userId, db, env);
+    return { success: true, message: "Connection activated, user notified" };
+  }
+
+  if (payload.status === "FAILED") {
+    webhookLogger.warn("OAuth connection failed", {
+      connectionId: payload.connectionId,
+      userId: payload.userId,
+    });
+  }
+
+  return { success: true, message: "OAuth callback processed" };
+};
+
+const handleV2EmailTrigger = async (
+  payload: ComposioV2EmailPayload,
+  env: WorkerEnv,
+): Promise<{ success: boolean; message: string }> => {
+  const emailLogger = logger.withTags({ module: "v2-email-trigger" });
+
+  emailLogger.info("Processing V2 email trigger", {
+    type: payload.type,
+    userId: payload.data.user_id,
+    subject: payload.data.subject,
+  });
+
+  // The user_id from Composio IS our Poppy userId
+  const userId = payload.data.user_id;
+
+  const emailInfo: EmailInfo = {
+    messageId: payload.data.message_id,
+    threadId: payload.data.thread_id,
+    from: payload.data.sender,
+    to: payload.data.to,
+    subject: payload.data.subject,
+    date: payload.data.message_timestamp,
+    snippet:
+      payload.data.preview?.body || payload.data.message_text.slice(0, 200),
+    labels: payload.data.label_ids,
+  };
+
+  emailLogger.info("Received new email via V2", {
+    userId,
+    from: emailInfo.from,
+    subject: emailInfo.subject,
+  });
+
+  const isImportant = evaluateEmailImportance(emailInfo);
+
+  if (!isImportant) {
+    emailLogger.info("Email not important, skipping notification", {
+      from: emailInfo.from,
+      subject: emailInfo.subject,
+    });
+    return { success: true, message: "Email not important" };
+  }
 
   const db = getDb(env.HYPERDRIVE.connectionString);
+  return notifyUserAboutEmail(userId, emailInfo, db, env);
+};
 
-  const connection = await db.query.userGmailConnections.findFirst({
-    where: eq(userGmailConnections.connectionRequestId, payload.connectionId),
-  });
+const handleEmailTrigger = async (
+  payload: EmailTriggerPayload,
+  env: WorkerEnv,
+): Promise<{ success: boolean; message: string }> => {
+  const emailLogger = logger.withTags({ module: "email-trigger" });
 
-  if (!connection) {
-    webhookLogger.warn("No pending connection found for webhook", {
-      connectionId: payload.connectionId,
+  if (payload.data?.triggerName !== "GMAIL_NEW_GMAIL_MESSAGE") {
+    emailLogger.info("Ignoring non-email trigger", {
+      triggerName: payload.data?.triggerName,
     });
-    return { success: false, message: "Connection not found" };
+    return { success: true, message: "Event ignored" };
   }
 
-  if (payload.status === "ACTIVE") {
-    await db
-      .update(userGmailConnections)
-      .set({
-        status: "active",
-        connectionId: payload.connectionId,
-        email: payload.email,
-        updatedAt: new Date(),
-      })
-      .where(eq(userGmailConnections.id, connection.id));
+  // The entityId from Composio IS our Poppy userId
+  const userId = payload.data.entityId;
 
-    webhookLogger.info("Gmail connection activated", {
-      userId: connection.userId,
-      email: payload.email,
-    });
+  const emailPayload = payload.data.payload;
+  const headers = emailPayload.payload.headers;
 
-    await sendWelcomeMessage(connection.userId, db, env);
+  const emailInfo: EmailInfo = {
+    messageId: emailPayload.messageId,
+    threadId: emailPayload.threadId,
+    from: extractHeader(headers, "From"),
+    to: extractHeader(headers, "To"),
+    subject: extractHeader(headers, "Subject"),
+    date: extractHeader(headers, "Date"),
+    snippet: emailPayload.snippet,
+    labels: emailPayload.labelIds,
+  };
 
-    return { success: true, message: "Connection activated" };
-  }
-
-  await db
-    .update(userGmailConnections)
-    .set({
-      status: "failed",
-      updatedAt: new Date(),
-    })
-    .where(eq(userGmailConnections.id, connection.id));
-
-  webhookLogger.warn("Gmail connection failed", {
-    userId: connection.userId,
+  emailLogger.info("Received new email", {
+    userId,
+    from: emailInfo.from,
+    subject: emailInfo.subject,
   });
 
-  return { success: true, message: "Connection marked as failed" };
+  const isImportant = evaluateEmailImportance(emailInfo);
+
+  if (!isImportant) {
+    emailLogger.info("Email not important", {
+      from: emailInfo.from,
+      subject: emailInfo.subject,
+    });
+    return { success: true, message: "Email not important" };
+  }
+
+  const db = getDb(env.HYPERDRIVE.connectionString);
+  return notifyUserAboutEmail(userId, emailInfo, db, env);
 };
 
 const sendWelcomeMessage = async (
@@ -132,6 +262,7 @@ const sendWelcomeMessage = async (
 ): Promise<void> => {
   const notifyLogger = logger.withTags({ module: "gmail-welcome" });
 
+  // Find user's conversation
   const userConversation = await db
     .select({ conversationId: conversationParticipants.conversationId })
     .from(conversationParticipants)
@@ -159,7 +290,7 @@ const sendWelcomeMessage = async (
     return;
   }
 
-  const taskDescription = `[GMAIL CONNECTED] The user just connected their Gmail account. Send them a brief welcome message like "Got it, you're all set! Want me to catch you up on your inbox?"`;
+  const taskDescription = `[GMAIL CONNECTED] The user just successfully connected their Gmail account. Acknowledge this and offer to help with their inbox.`;
 
   const executionAgentId = env.EXECUTION_AGENT.idFromName(interactionAgent.id);
   const executionAgent = env.EXECUTION_AGENT.get(executionAgentId);
@@ -181,81 +312,12 @@ const sendWelcomeMessage = async (
   }
 };
 
-const handleEmailTrigger = async (
-  payload: EmailTriggerPayload,
-  env: WorkerEnv,
-): Promise<{ success: boolean; message: string }> => {
-  const emailLogger = logger.withTags({ module: "email-trigger" });
-
-  if (payload.data?.triggerName !== "GMAIL_NEW_GMAIL_MESSAGE") {
-    emailLogger.info("Ignoring non-email trigger", {
-      triggerName: payload.data?.triggerName,
-    });
-    return { success: true, message: "Event ignored" };
-  }
-
-  const db = getDb(env.HYPERDRIVE.connectionString);
-  const composioUserId = payload.data.entityId;
-
-  const gmailConnection = await db.query.userGmailConnections.findFirst({
-    where: eq(userGmailConnections.composioUserId, composioUserId),
-  });
-
-  if (!gmailConnection) {
-    emailLogger.warn("No Gmail connection found", { composioUserId });
-    return { success: false, message: "Gmail connection not found" };
-  }
-
-  const emailPayload = payload.data.payload;
-  const headers = emailPayload.payload.headers;
-
-  const emailInfo = {
-    messageId: emailPayload.messageId,
-    threadId: emailPayload.threadId,
-    from: extractHeader(headers, "From"),
-    to: extractHeader(headers, "To"),
-    subject: extractHeader(headers, "Subject"),
-    date: extractHeader(headers, "Date"),
-    snippet: emailPayload.snippet,
-    labels: emailPayload.labelIds,
-  };
-
-  emailLogger.info("Received new email", {
-    userId: gmailConnection.userId,
-    from: emailInfo.from,
-    subject: emailInfo.subject,
-  });
-
-  const isImportant = evaluateEmailImportance(emailInfo);
-
-  if (!isImportant) {
-    emailLogger.info("Email not important", {
-      from: emailInfo.from,
-      subject: emailInfo.subject,
-    });
-    return { success: true, message: "Email not important" };
-  }
-
-  return notifyUserAboutEmail(gmailConnection.userId, emailInfo, db, env);
-};
-
 const extractHeader = (
   headers: Array<{ name: string; value: string }>,
   name: string,
 ): string | undefined => {
   return headers.find((h) => h.name.toLowerCase() === name.toLowerCase())
     ?.value;
-};
-
-type EmailInfo = {
-  messageId: string;
-  threadId: string;
-  from: string | undefined;
-  to: string | undefined;
-  subject: string | undefined;
-  date: string | undefined;
-  snippet: string;
-  labels: string[];
 };
 
 const evaluateEmailImportance = (emailInfo: EmailInfo): boolean => {
@@ -296,6 +358,7 @@ const notifyUserAboutEmail = async (
 ): Promise<{ success: boolean; message: string }> => {
   const notifyLogger = logger.withTags({ module: "email-notify" });
 
+  // Find user's conversation
   const userConversation = await db
     .select({ conversationId: conversationParticipants.conversationId })
     .from(conversationParticipants)

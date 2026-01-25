@@ -4,15 +4,10 @@ export interface ComposioClientConfig {
   apiKey: string;
 }
 
-export interface GmailConnectionRequest {
-  redirectUrl: string;
-  id: string;
-}
-
-export interface GmailConnectionStatus {
-  id: string;
-  status: "ACTIVE" | "PENDING" | "FAILED" | "DISCONNECTED";
-  email?: string;
+export interface ConnectionInfo {
+  app: string;
+  connectionId: string;
+  status: string;
 }
 
 /**
@@ -23,82 +18,115 @@ export const createComposioClient = (config: ComposioClientConfig) => {
 };
 
 /**
- * Initiate Gmail OAuth connection for a user
- * Returns the redirect URL for the user to authorize
+ * Get all active connections for a user from Composio.
+ * Uses the userId as the Composio entity ID.
  */
-export const initiateGmailConnect = async (
-  client: Composio,
+export const getUserConnections = async (
+  apiKey: string,
   userId: string,
-  authConfigId: string,
-): Promise<GmailConnectionRequest> => {
-  const connectionRequest = await client.connectedAccounts.link(
-    userId,
-    authConfigId,
-  );
-
-  return {
-    redirectUrl: connectionRequest.redirectUrl ?? "",
-    id: connectionRequest.id ?? "",
-  };
-};
-
-/**
- * Wait for a Gmail connection to be established
- * This blocks until the user completes OAuth or times out
- */
-export const waitForGmailConnection = async (
-  client: Composio,
-  connectionRequestId: string,
-  _timeoutMs = 300000, // 5 minutes default
-): Promise<GmailConnectionStatus> => {
-  const connectedAccount =
-    await client.connectedAccounts.get(connectionRequestId);
-
-  return {
-    id: connectedAccount.id,
-    status: connectedAccount.status as GmailConnectionStatus["status"],
-    email: (connectedAccount as any).email,
-  };
-};
-
-/**
- * Check the status of a Gmail connection for a user
- */
-export const getGmailConnectionStatus = async (
-  client: Composio,
-  userId: string,
-): Promise<GmailConnectionStatus | null> => {
+): Promise<ConnectionInfo[]> => {
   try {
-    const connections = await client.connectedAccounts.list({
+    const composio = new Composio({ apiKey });
+
+    const connections = await composio.connectedAccounts.list({
       userIds: [userId],
     });
 
-    const activeConnection = connections.items?.find(
-      (conn) => conn.status === "ACTIVE",
+    return (
+      connections.items
+        ?.filter((conn) => conn.status === "ACTIVE")
+        .map((conn) => ({
+          app:
+            conn.appName || conn.appUniqueId || conn.toolkit?.slug || "unknown",
+          connectionId: conn.id,
+          status: conn.status,
+        })) || []
+    );
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Check if a user has an active connection for a specific app.
+ */
+export const checkUserConnection = async (
+  apiKey: string,
+  userId: string,
+  app: string,
+): Promise<{ connected: boolean; connectionId?: string }> => {
+  const connections = await getUserConnections(apiKey, userId);
+  const connection = connections.find(
+    (conn) => conn.app.toLowerCase() === app.toLowerCase(),
+  );
+
+  if (connection) {
+    return { connected: true, connectionId: connection.connectionId };
+  }
+
+  return { connected: false };
+};
+
+/**
+ * Initiate a connection for a user to an app.
+ * Returns the OAuth redirect URL.
+ */
+export const initiateConnection = async (
+  apiKey: string,
+  userId: string,
+  authConfigId: string,
+): Promise<{ redirectUrl: string; connectionId: string } | null> => {
+  console.log("[Composio] initiateConnection called", {
+    userId,
+    authConfigId,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey?.substring(0, 8),
+  });
+
+  try {
+    const composio = new Composio({ apiKey });
+    console.log("[Composio] Client created, calling initiate...");
+
+    const connectionRequest = await composio.connectedAccounts.initiate(
+      userId,
+      authConfigId,
     );
 
-    if (!activeConnection) {
-      return null;
-    }
+    console.log("[Composio] initiate response:", {
+      hasRedirectUrl: !!connectionRequest.redirectUrl,
+      redirectUrl: connectionRequest.redirectUrl,
+      id: connectionRequest.id,
+      fullResponse: JSON.stringify(connectionRequest),
+    });
 
     return {
-      id: activeConnection.id,
-      status: activeConnection.status as GmailConnectionStatus["status"],
-      email: (activeConnection as any).email,
+      redirectUrl: connectionRequest.redirectUrl || "",
+      connectionId: connectionRequest.id || "",
     };
-  } catch {
+  } catch (error) {
+    console.error("[Composio] initiateConnection error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      error,
+    });
     return null;
   }
 };
 
 /**
- * Disconnect a Gmail account
+ * Disconnect an account by connection ID.
  */
-export const disconnectGmail = async (
-  client: Composio,
+export const disconnectAccount = async (
+  apiKey: string,
   connectionId: string,
-): Promise<void> => {
-  await client.connectedAccounts.delete(connectionId);
+): Promise<boolean> => {
+  try {
+    const composio = new Composio({ apiKey });
+    await composio.connectedAccounts.delete(connectionId);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export type ComposioClient = ReturnType<typeof createComposioClient>;
